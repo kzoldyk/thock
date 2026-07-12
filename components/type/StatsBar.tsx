@@ -50,9 +50,8 @@ interface Props {
 export function StatsBar({ stats }: Props) {
   const formatTime = (ms: number) => {
     const sec = Math.floor(ms / 1000)
-    const min = Math.floor(sec / 60)
-    const s = sec % 60
-    return `${min}:${s.toString().padStart(2, "0")}`
+    const timeLeft = Math.max(30 - sec, 0)
+    return `${timeLeft}s`
   }
 
   return (

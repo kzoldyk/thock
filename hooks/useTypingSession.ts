@@ -38,7 +38,7 @@ export interface TypingSessionAPI {
 }
 
 function freshSession(seed?: number): TypingSessionState {
-  const targetText = generateWords(30, seed)
+  const targetText = generateWords(200, seed)
   const words = createWords(targetText)
   words[0].isCurrent = true
   return {
@@ -100,7 +100,20 @@ export function useTypingSession(
   const computeLatestStats = useCallback(() => {
     const s = sessionRef.current
     if (!s.startTime) return
-    const elapsed = s.endTime ? s.endTime - s.startTime : Date.now() - s.startTime
+    
+    let elapsed = s.endTime ? s.endTime - s.startTime : Date.now() - s.startTime
+
+    // 30 seconds deadline threshold check
+    if (s.state === "typing" && elapsed >= 30000) {
+      s.state = "finished"
+      s.endTime = s.startTime + 30000
+      elapsed = 30000
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+
     statsRef.current = computeStats(
       s.words,
       s.targetText,
@@ -140,7 +153,7 @@ export function useTypingSession(
         // Start timer
         if (s.state === "idle") {
           s.startTime = Date.now()
-          timerRef.current = setInterval(computeLatestStats, 200)
+          timerRef.current = setInterval(computeLatestStats, 100)
         }
 
         // 3D press
