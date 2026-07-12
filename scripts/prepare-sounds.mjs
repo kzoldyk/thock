@@ -4,7 +4,7 @@ import path from "node:path";
 
 const sourcePath =
   process.env.SOUND_SOURCE ||
-  "/Users/hiteshbhai.prajapati/Downloads/638035__simeonradivoev__mechanical-keyboard-typing-cherry-blue-switches.wav";
+  path.resolve("public/sounds/source-cherry-blue.wav");
 
 const outputDir = path.resolve("public/sounds/default");
 const targetDownCount = 16;
