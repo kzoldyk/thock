@@ -386,7 +386,8 @@ export default function Home() {
       {/* Header Navigation */}
       <header className="flex items-center justify-between px-8 py-5 relative z-10 select-none">
         {/* Left: Minimal Logo */}
-        <div className="flex items-center gap-1.5 cursor-pointer">
+        <div className="flex items-center gap-2 cursor-pointer">
+          <img src="/logo.jpg" alt="thock logo" className="w-5 h-5 rounded-md shadow-sm border border-black/5 dark:border-white/10" />
           <span className="font-bold tracking-tight text-lg text-[var(--foreground)] font-inter">thock<span className="text-[var(--accent)]">.</span></span>
         </div>
 
