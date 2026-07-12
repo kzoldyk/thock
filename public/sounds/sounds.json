@@ -1,0 +1,8 @@
+[
+  {
+    "id": "default",
+    "name": "Studio Default",
+    "description": "Processed from a single mechanical keyboard recording into distinct key-down and key-up samples.",
+    "path": "/sounds/default/pack.json"
+  }
+]

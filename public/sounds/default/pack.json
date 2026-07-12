@@ -1,0 +1,47 @@
+{
+  "id": "default",
+  "name": "Studio Default",
+  "description": "Processed from a single mechanical keyboard recording into distinct key-down and key-up samples.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/default/down-01.wav",
+    "sounds/default/down-02.wav",
+    "sounds/default/down-03.wav",
+    "sounds/default/down-04.wav",
+    "sounds/default/down-05.wav",
+    "sounds/default/down-06.wav",
+    "sounds/default/down-07.wav",
+    "sounds/default/down-08.wav",
+    "sounds/default/down-09.wav",
+    "sounds/default/down-10.wav",
+    "sounds/default/down-11.wav",
+    "sounds/default/down-12.wav",
+    "sounds/default/down-13.wav",
+    "sounds/default/down-14.wav",
+    "sounds/default/down-15.wav",
+    "sounds/default/down-16.wav"
+  ],
+  "up": [
+    "sounds/default/up-01.wav",
+    "sounds/default/up-02.wav",
+    "sounds/default/up-03.wav",
+    "sounds/default/up-04.wav",
+    "sounds/default/up-05.wav",
+    "sounds/default/up-06.wav",
+    "sounds/default/up-07.wav",
+    "sounds/default/up-08.wav",
+    "sounds/default/up-09.wav",
+    "sounds/default/up-10.wav",
+    "sounds/default/up-11.wav",
+    "sounds/default/up-12.wav",
+    "sounds/default/up-13.wav",
+    "sounds/default/up-14.wav",
+    "sounds/default/up-15.wav",
+    "sounds/default/up-16.wav"
+  ],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}
