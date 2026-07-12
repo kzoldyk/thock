@@ -4,8 +4,6 @@
   "private": true,
   "scripts": {
     "prepare-sounds": "node scripts/prepare-sounds.mjs",
-    "predev": "npm run prepare-sounds",
-    "prebuild": "npm run prepare-sounds",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
