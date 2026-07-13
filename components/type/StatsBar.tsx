@@ -4,6 +4,7 @@ import type { TypingStats } from "@/types"
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber"
 import { useAppStore } from "@/stores/useAppStore"
 import { cn } from "@/lib/utils"
+import { getFontClass } from "@/lib/fonts"
 
 interface StatItemProps {
   label: string
@@ -14,7 +15,7 @@ interface StatItemProps {
 
 function StatItem({ label, value, suffix, format }: StatItemProps) {
   const fontFamily = useAppStore((s) => s.fontFamily)
-  const fontClass = fontFamily === "inter" ? "font-inter" : "font-sans"
+  const fontClass = getFontClass(fontFamily)
 
   return (
     <div className={cn(

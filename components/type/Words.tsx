@@ -4,6 +4,7 @@ import { useMemo, useRef, useEffect, useState } from "react"
 import type { WordData } from "@/types"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/stores/useAppStore"
+import { getFontClass } from "@/lib/fonts"
 
 interface WordsDisplayProps {
   words: WordData[]
@@ -17,17 +18,7 @@ export function WordsDisplay({ words, currentWordIndex, currentCharIndex }: Word
   const activeWordRef = useRef<HTMLSpanElement>(null)
   const [translateX, setTranslateX] = useState(0)
 
-  const fontClass = useMemo(() => {
-    switch (fontFamily) {
-      case "geist":
-        return "font-sans"
-      case "inter":
-        return "font-inter"
-      case "sf-pro":
-      default:
-        return "font-sans" // defaults to SF Pro on Apple/system-ui
-    }
-  }, [fontFamily])
+  const fontClass = useMemo(() => getFontClass(fontFamily), [fontFamily])
 
   // Horizontal translation math on active word shift
   useEffect(() => {

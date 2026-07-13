@@ -15,6 +15,8 @@ import { appThemes } from "@/lib/themes"
 import { keyboardThemes } from "@/lib/themes"
 import { cn } from "@/lib/utils"
 import { BackgroundParticles } from "@/components/ui/BackgroundParticles"
+import { getFontClass } from "@/lib/fonts"
+import type { FontFamily } from "@/types"
 
 function SegmentedControl<T extends string>({
   options,
@@ -26,16 +28,16 @@ function SegmentedControl<T extends string>({
   onChange: (v: T) => void
 }) {
   return (
-    <div className="flex p-0.5 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5">
+    <div className="flex p-0.5 bg-[var(--chrome-surface-soft)] rounded-xl border border-[var(--chrome-border)]">
       {options.map((opt) => (
         <button
           key={opt.id}
           onClick={() => onChange(opt.id)}
           className={cn(
-            "flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer select-none",
+            "flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-200 cursor-pointer select-none",
             value === opt.id
               ? "bg-[var(--accent)] text-[var(--background)] shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
-              : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              : "text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--chrome-surface)]"
           )}
         >
           {opt.label}
@@ -45,7 +47,7 @@ function SegmentedControl<T extends string>({
   )
 }
 
-function SettingsPanel() {
+function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontClass: string }) {
   const {
     settingsOpen, setSettingsOpen,
     layoutId, setLayoutId,
@@ -74,7 +76,10 @@ function SettingsPanel() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/10 dark:bg-black/50 backdrop-blur-md"
+            className={cn(
+              "fixed inset-0 backdrop-blur-xl",
+              isDarkMode ? "bg-zinc-950/60" : "bg-zinc-950/20",
+            )}
             onClick={() => setSettingsOpen(false)}
           />
 
@@ -84,16 +89,23 @@ function SettingsPanel() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={{ type: "spring", stiffness: 360, damping: 28 }}
-            className="glass-panel w-full max-w-xl max-h-[80vh] overflow-y-auto rounded-3xl p-6 sm:p-8 z-10 shadow-2xl relative flex flex-col scrollbar-thin"
+            className={cn(
+              "glass-panel w-full max-w-xl max-h-[80vh] overflow-y-auto rounded-[28px] p-6 sm:p-8 z-10 relative flex flex-col scrollbar-thin",
+              fontClass,
+            )}
+            style={{
+              background: "var(--chrome-surface-strong)",
+            }}
           >
-            <div className="flex items-center justify-between pb-4 border-b border-[var(--muted)]/10">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10 dark:border-white/8">
               <div className="flex flex-col">
-                <h2 className="text-base font-bold tracking-tight text-[var(--foreground)]">Preferences</h2>
-                <p className="text-[10px] text-[var(--muted)]">Adjust the workspace, visuals, and mechanical sound nodes.</p>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--muted)] opacity-80">Preferences</p>
+                <h2 className="mt-1 text-base font-semibold tracking-tight text-[var(--foreground)]">Workspace styling</h2>
+                <p className="text-[11px] text-[var(--muted)] max-w-[34ch]">Tune the keyboard, typography, and ambient chrome so the whole interface feels aligned.</p>
               </div>
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors border border-white/10 dark:border-white/10 bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface)] cursor-pointer"
               >
                 ✕
               </button>
@@ -105,10 +117,10 @@ function SettingsPanel() {
                   <select
                     value={appThemeId}
                     onChange={(e) => setAppThemeId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
                   >
                     {appThemes.map((theme) => (
-                      <option key={theme.id} value={theme.id} className="dark:bg-zinc-950 dark:text-zinc-50">{theme.name}</option>
+                      <option key={theme.id} value={theme.id} className="bg-zinc-950 text-zinc-50">{theme.name}</option>
                     ))}
                   </select>
                 </Section>
@@ -117,24 +129,27 @@ function SettingsPanel() {
                   <select
                     value={keyboardThemeId}
                     onChange={(e) => setKeyboardThemeId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
                   >
                     {keyboardThemes.map((theme) => (
-                      <option key={theme.id} value={theme.id} className="dark:bg-zinc-950 dark:text-zinc-50">{theme.name}</option>
+                      <option key={theme.id} value={theme.id} className="bg-zinc-950 text-zinc-50">{theme.name}</option>
                     ))}
                   </select>
                 </Section>
 
                 <Section title="Typography Family">
-                  <SegmentedControl
-                    options={[
-                      { id: "inter", label: "Inter" },
-                      { id: "geist", label: "Geist" },
-                      { id: "sf-pro", label: "SF Pro" },
-                    ]}
+                  <select
                     value={fontFamily}
-                    onChange={setFontFamily}
-                  />
+                    onChange={(e) => setFontFamily(e.target.value as FontFamily)}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
+                  >
+                    <option value="inter">Inter</option>
+                    <option value="geist">Geist</option>
+                    <option value="sf-pro">SF Pro</option>
+                    <option value="jetbrains-mono">JetBrains Mono</option>
+                    <option value="ibm-plex-mono">IBM Plex Mono</option>
+                    <option value="source-code-pro">Source Code Pro</option>
+                  </select>
                 </Section>
 
                 <Section title="Keyboard Layout">
@@ -164,14 +179,14 @@ function SettingsPanel() {
                   <select
                     value={switchPackId}
                     onChange={(e) => setSwitchPackId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
                   >
-                    <option value="default" className="dark:bg-zinc-950 dark:text-zinc-50">Cherry Blue Switches</option>
+                    <option value="default" className="bg-zinc-950 text-zinc-50">Cherry Blue Switches</option>
                   </select>
                 </Section>
 
                 <Section title="Keyboard Visualizer">
-                  <label className="flex items-center justify-between p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs font-semibold cursor-pointer select-none">
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs font-semibold cursor-pointer select-none">
                     <span className="text-[var(--muted)]">Show Layout</span>
                     <input
                       type="checkbox"
@@ -194,7 +209,7 @@ function SettingsPanel() {
                 </Section>
 
                 <Section title="Keypress Sound">
-                  <label className="flex items-center justify-between p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs font-semibold cursor-pointer select-none">
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs font-semibold cursor-pointer select-none">
                     <span className="text-[var(--muted)]">Sound Output</span>
                     <input
                       type="checkbox"
@@ -207,7 +222,7 @@ function SettingsPanel() {
               </div>
 
               <div className="border-t border-[var(--muted)]/10 pt-5 space-y-4">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] opacity-80">Acoustic nodes tuning</h4>
+                <h4 className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--muted)] opacity-80">Acoustic nodes tuning</h4>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                   <Section title="Master Volume">
@@ -231,7 +246,7 @@ function SettingsPanel() {
                   </Section>
 
                   <Section title="Ambient Particles">
-                    <label className="flex items-center justify-between p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs font-semibold cursor-pointer select-none">
+                    <label className="flex items-center justify-between p-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs font-semibold cursor-pointer select-none">
                       <span className="text-[var(--muted)]">Animate Background</span>
                       <input
                         type="checkbox"
@@ -254,7 +269,7 @@ function SettingsPanel() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <h3 className="text-[9px] font-bold uppercase tracking-wider text-[var(--muted)] opacity-80">
+      <h3 className="text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--muted)] opacity-80">
         {title}
       </h3>
       {children}
@@ -276,7 +291,7 @@ function Slider({
   step?: number
 }) {
   return (
-    <div className="flex items-center gap-3 w-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-xl px-3 py-2">
+    <div className="flex items-center gap-3 w-full bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] rounded-xl px-3 py-2">
       <input
         type="range"
         min={min}
@@ -311,6 +326,8 @@ export default function Home() {
   const keyboardType = useAppStore((s) => s.keyboardType)
 
   const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
+  const fontFamily = useAppStore((s) => s.fontFamily)
+  const fontClass = getFontClass(fontFamily)
 
   const {
     words,
@@ -344,6 +361,14 @@ export default function Home() {
   }, [volume])
 
   useEffect(() => {
+    const root = document.documentElement
+    const isDarkTheme = theme.mode === "dark"
+    root.classList.toggle("dark", isDarkTheme)
+    root.dataset.theme = theme.id
+    root.style.colorScheme = isDarkTheme ? "dark" : "light"
+  }, [theme.id, theme.mode])
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault()
@@ -355,24 +380,46 @@ export default function Home() {
   }, [setSettingsOpen])
 
   const toggleDarkMode = () => {
-    if (appThemeId === "pure-white") {
-      setAppThemeId("dark")
+    if (theme.mode === "dark") {
+      setAppThemeId("keeby-light")
     } else {
-      setAppThemeId("pure-white")
+      setAppThemeId("dark")
     }
   }
 
-  const isDark = ["dark", "oled", "coffee", "rain", "night-studio"].includes(appThemeId)
+  const isDark = theme.mode === "dark"
 
   return (
     <main
-      className="flex flex-col flex-1 min-h-screen overflow-hidden relative transition-colors duration-500 bg-[var(--background)] text-[var(--foreground)]"
+      className={cn(
+        "flex flex-col flex-1 min-h-[100dvh] overflow-hidden relative transition-colors duration-500 bg-[var(--background)] text-[var(--foreground)]",
+        fontClass,
+      )}
       style={
         {
           "--background": theme.background,
           "--foreground": theme.foreground,
           "--muted": theme.muted,
           "--accent": theme.accent,
+          "--accent-rgb": theme.accentRgb,
+          "--chrome-surface": theme.mode === "dark"
+            ? "rgba(14, 14, 18, 0.76)"
+            : "rgba(255, 255, 255, 0.78)",
+          "--chrome-surface-strong": theme.mode === "dark"
+            ? "rgba(20, 20, 24, 0.92)"
+            : "rgba(255, 255, 255, 0.9)",
+          "--chrome-surface-soft": theme.mode === "dark"
+            ? "rgba(24, 24, 28, 0.58)"
+            : "rgba(255, 255, 255, 0.56)",
+          "--chrome-border": theme.mode === "dark"
+            ? "rgba(255, 255, 255, 0.08)"
+            : "rgba(17, 17, 17, 0.08)",
+          "--chrome-shadow": theme.mode === "dark"
+            ? "0 28px 80px rgba(0, 0, 0, 0.4)"
+            : "0 24px 60px rgba(17, 17, 17, 0.08)",
+          "--chrome-shadow-hover": theme.mode === "dark"
+            ? "0 32px 100px rgba(0, 0, 0, 0.5)"
+            : "0 28px 80px rgba(17, 17, 17, 0.12)",
         } as React.CSSProperties
       }
     >
@@ -387,7 +434,7 @@ export default function Home() {
       <header className="flex items-center justify-between px-8 py-5 relative z-10 select-none">
         {/* Left: Minimal Logo */}
         <div className="flex items-center gap-1.5 cursor-pointer">
-          <span className="font-bold tracking-tight text-lg text-[var(--foreground)] font-inter">thock<span className="text-[var(--accent)]">.</span></span>
+          <span className="font-bold tracking-tight text-lg text-[var(--foreground)]">thock<span className="text-[var(--accent)]">.</span></span>
         </div>
 
         {/* Center: Premium Nav Items */}
@@ -421,7 +468,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="w-8 h-8 rounded-full border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 flex items-center justify-center text-sm hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer button-lift"
+            className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
             title={soundEnabled ? "Mute Key Sounds" : "Unmute Key Sounds"}
           >
             {soundEnabled ? "🔊" : "🔇"}
@@ -429,7 +476,7 @@ export default function Home() {
 
           <button
             onClick={() => setShowKeyboard(!showKeyboard)}
-            className="w-8 h-8 rounded-full border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 flex items-center justify-center text-sm hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer button-lift"
+            className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
             title={showKeyboard ? "Hide Keyboard" : "Show Keyboard"}
           >
             ⌨️
@@ -437,7 +484,7 @@ export default function Home() {
 
           <button
             onClick={toggleDarkMode}
-            className="w-8 h-8 rounded-full border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 flex items-center justify-center text-sm text-[var(--foreground)] hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer button-lift"
+            className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
             title="Toggle Theme"
           >
             {isDark ? "🔆" : "🌙"}
@@ -445,13 +492,13 @@ export default function Home() {
           
           <button
             onClick={() => setSettingsOpen(true)}
-            className="px-4 py-1.5 text-xs font-semibold rounded-full bg-black/5 dark:bg-white/5 text-[var(--foreground)] hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-300 border border-black/5 dark:border-white/5 cursor-pointer button-lift ml-1"
+            className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift ml-1"
           >
             Settings
           </button>
 
           {/* HP profile avatar mockup */}
-          <div className="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 flex items-center justify-center text-[10px] font-bold bg-gradient-to-tr from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 text-[var(--foreground)] shadow-sm font-sans select-none cursor-default">
+          <div className="w-8 h-8 rounded-full border border-[var(--chrome-border)] flex items-center justify-center text-[10px] font-bold bg-gradient-to-tr from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 text-[var(--foreground)] shadow-sm select-none cursor-default">
             HP
           </div>
         </div>
@@ -510,10 +557,10 @@ export default function Home() {
 
       {/* Footer hint details */}
       <footer className="text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-70">
-        Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--muted)]/20 bg-black/5 dark:bg-white/5 font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--muted)]/20 bg-black/5 dark:bg-white/5 font-mono text-[9px]">Esc</kbd> for settings
+        Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
       </footer>
 
-      <SettingsPanel />
+      <SettingsPanel isDarkMode={isDark} fontClass={fontClass} />
     </main>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import type { LayoutId } from "@/types"
+import type { FontFamily, LayoutId } from "@/types"
 
 interface AppStore {
   layoutId: LayoutId
@@ -26,8 +26,8 @@ interface AppStore {
   setReverb: (v: number) => void
   pitch: number
   setPitch: (v: number) => void
-  fontFamily: "geist" | "inter" | "sf-pro"
-  setFontFamily: (font: "geist" | "inter" | "sf-pro") => void
+  fontFamily: FontFamily
+  setFontFamily: (font: FontFamily) => void
   typingMode: "time" | "words" | "quotes"
   setTypingMode: (mode: "time" | "words" | "quotes") => void
   showKeyboard: boolean

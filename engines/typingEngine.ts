@@ -36,6 +36,7 @@ export interface ProcessKeyResult {
   isCorrect: boolean
   isBackspace: boolean
   isSpace: boolean
+  wordMistake: boolean
   action: "char" | "space" | "backspace" | "ignore" | "restart"
 }
 
@@ -56,7 +57,7 @@ export function processKey(
 } {
   if (state === "finished") {
     return {
-      result: { sessionEnded: false, isCorrect: false, isBackspace: false, isSpace: false, action: "ignore" },
+      result: { sessionEnded: false, isCorrect: false, isBackspace: false, isSpace: false, wordMistake: false, action: "ignore" },
       newState: state,
       newWordIndex: currentWordIndex,
       newCharIndex: currentCharIndex,
@@ -67,7 +68,7 @@ export function processKey(
   const word = words[currentWordIndex]
   if (!word) {
     return {
-      result: { sessionEnded: false, isCorrect: false, isBackspace: false, isSpace: false, action: "ignore" },
+      result: { sessionEnded: false, isCorrect: false, isBackspace: false, isSpace: false, wordMistake: false, action: "ignore" },
       newState: state,
       newWordIndex: currentWordIndex,
       newCharIndex: currentCharIndex,
@@ -81,7 +82,7 @@ export function processKey(
   if (code === "Backspace") {
     if (currentCharIndex > 0) {
       return {
-        result: { sessionEnded: false, isCorrect: true, isBackspace: true, isSpace: false, action: "backspace" },
+        result: { sessionEnded: false, isCorrect: true, isBackspace: true, isSpace: false, wordMistake: false, action: "backspace" },
         newState: "typing",
         newWordIndex: currentWordIndex,
         newCharIndex: currentCharIndex - 1,
@@ -95,7 +96,7 @@ export function processKey(
       word.isCurrent = false
       const prevCharIndex = targetText[currentWordIndex - 1].length
       return {
-        result: { sessionEnded: false, isCorrect: true, isBackspace: true, isSpace: true, action: "backspace" },
+        result: { sessionEnded: false, isCorrect: true, isBackspace: true, isSpace: true, wordMistake: false, action: "backspace" },
         newState: "typing",
         newWordIndex: currentWordIndex - 1,
         newCharIndex: prevCharIndex,
@@ -103,7 +104,7 @@ export function processKey(
       }
     }
     return {
-      result: { sessionEnded: false, isCorrect: true, isBackspace: true, isSpace: false, action: "ignore" },
+      result: { sessionEnded: false, isCorrect: true, isBackspace: true, isSpace: false, wordMistake: false, action: "ignore" },
       newState: state,
       newWordIndex: currentWordIndex,
       newCharIndex: currentCharIndex,
@@ -113,6 +114,8 @@ export function processKey(
 
   // Space
   if (code === "Space" || key === " ") {
+    const hasMistakes = word.chars.some((char) => char.state === "incorrect" || char.state === "extra")
+    const wordMistake = hasMistakes || currentCharIndex !== targetWord.length
     word.isCurrent = false
     word.isCompleted = true
 
@@ -120,7 +123,7 @@ export function processKey(
       const nextWord = words[currentWordIndex + 1]
       nextWord.isCurrent = true
       return {
-        result: { sessionEnded: false, isCorrect: true, isBackspace: false, isSpace: true, action: "space" },
+        result: { sessionEnded: false, isCorrect: true, isBackspace: false, isSpace: true, wordMistake, action: "space" },
         newState: "typing",
         newWordIndex: currentWordIndex + 1,
         newCharIndex: 0,
@@ -129,7 +132,7 @@ export function processKey(
     }
 
     return {
-      result: { sessionEnded: true, isCorrect: true, isBackspace: false, isSpace: true, action: "space" },
+      result: { sessionEnded: true, isCorrect: true, isBackspace: false, isSpace: true, wordMistake, action: "space" },
       newState: "finished",
       newWordIndex: currentWordIndex,
       newCharIndex: currentCharIndex,
@@ -154,6 +157,7 @@ export function processKey(
         isCorrect,
         isBackspace: false,
         isSpace: false,
+        wordMistake: false,
         action: "char",
       },
       newState: finished ? "finished" : "typing",
@@ -164,7 +168,7 @@ export function processKey(
   }
 
   return {
-    result: { sessionEnded: false, isCorrect: false, isBackspace: false, isSpace: false, action: "ignore" },
+    result: { sessionEnded: false, isCorrect: false, isBackspace: false, isSpace: false, wordMistake: false, action: "ignore" },
     newState: state,
     newWordIndex: currentWordIndex,
     newCharIndex: currentCharIndex,
@@ -177,26 +181,31 @@ export function computeStats(
   targetText: string[],
   elapsedMs: number,
   keystrokes: Keystroke[],
+  wordMistakes: number,
   currentWordIndex: number,
   currentCharIndex: number,
 ): TypingStats {
-  let totalCorrect = 0
-  let totalTyped = 0
+  let correctLetters = 0
   let mistakes = 0
+  let spaceCount = 0
+
+  for (const key of keystrokes) {
+    if (key.code === "Space") spaceCount++
+  }
 
   for (const word of words) {
     for (const char of word.chars) {
-      if (char.state === "correct") totalCorrect++
+      if (char.state === "correct") correctLetters++
       if (char.state === "incorrect" || char.state === "extra") mistakes++
-      if (char.state !== "untyped") totalTyped++
     }
   }
 
-  let correctChars = totalCorrect
+  const correctChars = correctLetters + spaceCount
+  const totalTyped = keystrokes.filter((key) => key.code !== "Backspace").length
   const elapsedMin = Math.max(elapsedMs / 60000, 0.0001)
-  const wpm = Math.round((totalCorrect / 5) / elapsedMin)
+  const wpm = Math.round((correctChars / 5) / elapsedMin)
   const raw = Math.round((totalTyped / 5) / elapsedMin)
-  const accuracy = totalTyped > 0 ? Math.round((totalCorrect / totalTyped) * 100) : 100
+  const accuracy = totalTyped > 0 ? Math.round((correctChars / Math.max(totalTyped + wordMistakes, 1)) * 100) : 100
 
   const wpmSamples = getWpmSamples(words, elapsedMin)
   const consistency = computeConsistency(wpmSamples, wpm)
@@ -220,6 +229,7 @@ export function computeStats(
     accuracy,
     consistency,
     mistakes,
+    wordMistakes,
     streak,
     elapsedMs,
     totalTyped,

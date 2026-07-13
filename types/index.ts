@@ -13,12 +13,21 @@ export interface WordData {
 
 export type SessionState = 'idle' | 'typing' | 'finished'
 
+export type FontFamily =
+  | "geist"
+  | "inter"
+  | "sf-pro"
+  | "jetbrains-mono"
+  | "ibm-plex-mono"
+  | "source-code-pro"
+
 export interface TypingStats {
   wpm: number
   raw: number
   accuracy: number
   consistency: number
   mistakes: number
+  wordMistakes: number
   streak: number
   elapsedMs: number
   totalTyped: number
@@ -102,10 +111,12 @@ export interface KeyboardTheme {
 export interface AppTheme {
   id: string
   name: string
+  mode: "light" | "dark"
   background: string
   foreground: string
   muted: string
   accent: string
+  accentRgb: string
   fontClass: string
 }
 

@@ -24,6 +24,7 @@ interface TypingSessionState {
   startTime: number | null
   endTime: number | null
   keystrokes: Keystroke[]
+  wordMistakes: number
 }
 
 export interface TypingSessionAPI {
@@ -50,6 +51,21 @@ function freshSession(seed?: number): TypingSessionState {
     startTime: null,
     endTime: null,
     keystrokes: [],
+    wordMistakes: 0,
+  }
+}
+
+function emptySession(): TypingSessionState {
+  return {
+    targetText: [],
+    words: [],
+    wordIndex: 0,
+    charIndex: 0,
+    state: "idle",
+    startTime: null,
+    endTime: null,
+    keystrokes: [],
+    wordMistakes: 0,
   }
 }
 
@@ -58,20 +74,37 @@ export function useTypingSession(
   layoutId: LayoutId,
 ): TypingSessionAPI {
   const soundEnabled = useAppStore((s) => s.soundEnabled)
-  const sessionRef = useRef<TypingSessionState>(freshSession())
-  const [, setTick] = useState(0)
+  const sessionRef = useRef<TypingSessionState>(emptySession())
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const activeKeysRef = useRef<Set<string>>(new Set())
+  const [activeKeysView, setActiveKeysView] = useState<Set<string>>(() => new Set())
   const statsRef = useRef<TypingStats>({
     wpm: 0, raw: 0, accuracy: 100, consistency: 100,
-    mistakes: 0, streak: 0, elapsedMs: 0,
+    mistakes: 0, wordMistakes: 0, streak: 0, elapsedMs: 0,
     totalTyped: 0, correctChars: 0,
   })
+  const [viewState, setViewState] = useState<TypingSessionState>(() => emptySession())
+  const [viewStats, setViewStats] = useState<TypingStats>(() => ({
+    wpm: 0,
+    raw: 0,
+    accuracy: 100,
+    consistency: 100,
+    mistakes: 0,
+    wordMistakes: 0,
+    streak: 0,
+    elapsedMs: 0,
+    totalTyped: 0,
+    correctChars: 0,
+  }))
   const hydrated = useRef(false)
 
   const layout = useMemo(() => getLayout(layoutId), [layoutId])
 
-  const rerender = useCallback(() => setTick((n) => n + 1), [])
+  const rerender = useCallback(() => {
+    setViewState({ ...sessionRef.current })
+    setViewStats({ ...statsRef.current })
+    setActiveKeysView(new Set(activeKeysRef.current))
+  }, [])
 
   // Re-seed words after hydration so they differ per session
   useEffect(() => {
@@ -84,6 +117,7 @@ export function useTypingSession(
       words: createWords(targetText),
       targetText,
     }
+    activeKeysRef.current.clear()
     rerender()
   }, [rerender])
 
@@ -119,6 +153,7 @@ export function useTypingSession(
       s.targetText,
       elapsed,
       s.keystrokes,
+      s.wordMistakes,
       s.wordIndex,
       s.charIndex,
     )
@@ -137,12 +172,12 @@ export function useTypingSession(
         sessionRef.current = freshSession(seed)
         timerRef.current = null
         activeKeysRef.current.clear()
+        setActiveKeysView(new Set())
         rerender()
         return
       }
 
       if (["Control", "Shift", "Alt", "Meta"].includes(key)) {
-        // For shift/ctrl etc., press 3D key but no typing
         keyboardRef.current?.pressKey(e.code)
         return
       }
@@ -150,33 +185,29 @@ export function useTypingSession(
       e.preventDefault()
 
       if (key.length === 1 || key === "Backspace" || code === "Space") {
-        // Start timer
         if (s.state === "idle") {
           s.startTime = Date.now()
           timerRef.current = setInterval(computeLatestStats, 100)
         }
 
-        // 3D press
         keyboardRef.current?.pressKey(code)
 
-        // Active keys for 2D
         activeKeysRef.current.add(code)
+        setActiveKeysView(new Set(activeKeysRef.current))
         setTimeout(() => {
           activeKeysRef.current.delete(code)
+          setActiveKeysView(new Set(activeKeysRef.current))
           rerender()
         }, 100)
 
-        // Audio
         if (useAppStore.getState().soundEnabled) {
           const pan = getPanValue(code)
           console.warn("[typing-session] handleKeyDown: key =", key, "code =", code, "pan =", pan)
           audioEngine.playDown(code, pan)
         }
 
-        // Haptic
         hapticEngine.trigger(code)
 
-        // Process key
         const result = processKey(
           key,
           code,
@@ -196,8 +227,11 @@ export function useTypingSession(
             target: s.targetText[s.wordIndex]?.[s.charIndex],
           })
 
+          if (result.result.wordMistake) {
+            s.wordMistakes++
+          }
+
           if (result.result.action === "backspace" && result.newWordIndex === s.wordIndex) {
-            // Backspace within same word — unset previous char
             unsetCharState(s.words, s.wordIndex, s.charIndex - 1)
           } else if (result.result.action === "char") {
             updateCharState(s.words, s.wordIndex, s.charIndex, result.result.isCorrect)
@@ -250,9 +284,10 @@ export function useTypingSession(
       timerRef.current = null
     }
     activeKeysRef.current.clear()
+    setActiveKeysView(new Set())
     statsRef.current = {
       wpm: 0, raw: 0, accuracy: 100, consistency: 100,
-      mistakes: 0, streak: 0, elapsedMs: 0,
+      mistakes: 0, wordMistakes: 0, streak: 0, elapsedMs: 0,
       totalTyped: 0, correctChars: 0,
     }
     rerender()
@@ -278,13 +313,13 @@ export function useTypingSession(
   )
 
   return {
-    words: sessionRef.current.words,
-    stats: statsRef.current,
-    sessionState: sessionRef.current.state,
-    currentWordIndex: sessionRef.current.wordIndex,
-    currentCharIndex: sessionRef.current.charIndex,
+    words: viewState.words,
+    stats: viewStats,
+    sessionState: viewState.state,
+    currentWordIndex: viewState.wordIndex,
+    currentCharIndex: viewState.charIndex,
     restart,
-    activeKeys: activeKeysRef.current,
+    activeKeys: activeKeysView,
     emitKeyEvent,
   }
 }
