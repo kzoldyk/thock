@@ -36,6 +36,10 @@ interface AppStore {
   setSoundEnabled: (v: boolean) => void
   keyboardType: "2d" | "3d"
   setKeyboardType: (v: "2d" | "3d") => void
+  flowMode: boolean
+  setFlowMode: (v: boolean) => void
+  activeEffect: string | null
+  setActiveEffect: (v: string | null) => void
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -71,4 +75,8 @@ export const useAppStore = create<AppStore>((set) => ({
   setSoundEnabled: (v) => set({ soundEnabled: v }),
   keyboardType: "2d",
   setKeyboardType: (v) => set({ keyboardType: v }),
+  flowMode: false,
+  setFlowMode: (v) => set({ flowMode: v }),
+  activeEffect: null,
+  setActiveEffect: (v) => set({ activeEffect: v }),
 }))

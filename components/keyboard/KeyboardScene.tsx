@@ -8,6 +8,7 @@ import { Keycap } from "./Keycap"
 import { VortexKeyboardCase } from "./VortexKeyboardCase"
 import { getLayout } from "@/lib/keyboard-layouts"
 import { keyboardThemes } from "@/lib/themes"
+import { useAppStore } from "@/stores/useAppStore"
 import type { LayoutId } from "@/types"
 
 useGLTF.preload("/models/vortexseries_mechanical_keyboard_gt-8__nj80.glb")
@@ -62,25 +63,60 @@ function KeyboardSceneInner({ layoutId, themeId, pressedRef }: KeyboardSceneInne
   const totalWidth = totalCols * UNIT
   const totalDepth = (totalRows - 1) * ROW_GAP + UNIT
 
-  useFrame((_, delta) => {
+  const activeEffect = useAppStore((s) => s.activeEffect)
+
+  useFrame(({ clock }, delta) => {
+    // Subtle continuous floating
+    const t = clock.getElapsedTime()
+    const floatY = Math.sin(t * 0.8) * 0.005
+    const floatX = Math.cos(t * 0.5) * 0.002
+
     if (shakeRef.current.t > 0) {
       shakeRef.current.t -= delta * 2
       const i = Math.max(0, shakeRef.current.t)
-      camera.position.x = shakeRef.current.x * i
-      camera.position.y = 0.35 + shakeRef.current.y * i
+      camera.position.x = floatX + shakeRef.current.x * i
+      camera.position.y = 0.35 + floatY + shakeRef.current.y * i
     } else {
-      camera.position.x = 0
-      camera.position.y = 0.35
+      camera.position.x = floatX
+      camera.position.y = 0.35 + floatY
+    }
+    
+    // Check if space or enter are held to add subtle shifts
+    const isSpaceDown = pressedRef.current["Space"] === 1
+    const isEnterDown = pressedRef.current["Enter"] === 1
+    
+    if (isSpaceDown) {
+       camera.position.x += 0.003
+    }
+    if (isEnterDown) {
+       camera.position.y -= 0.004
     }
   })
 
+  // Dynamic Lighting based on effect
+  let ambientColor = theme?.ambientColor || "#ffffff"
+  let ambientIntensity = 0.5
+  let directionalColor = theme?.lightColor || "#ffffff"
+  let directionalIntensity = theme?.lightIntensity || 0.7
+
+  if (activeEffect === "warm-mode") {
+     ambientColor = "#ffebcd" // Warm
+     directionalColor = "#ff7a45"
+  } else if (activeEffect === "clean-white") {
+     ambientColor = "#ffffff"
+     directionalColor = "#ffffff"
+     directionalIntensity = 1.0
+  } else if (activeEffect === "thock-ripple") {
+     ambientIntensity = 0.8
+  }
+
   return (
     <group>
-      <ambientLight color={theme?.ambientColor || "#ffffff"} intensity={0.5} />
+      <ambientLight color={ambientColor} intensity={ambientIntensity} />
       <directionalLight
         position={[2, 4, 3]}
-        intensity={theme?.lightIntensity || 0.7}
-        color={theme?.lightColor || "#ffffff"}
+        intensity={directionalIntensity}
+        color={directionalColor}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -164,7 +200,7 @@ export const KeyboardScene = forwardRef<KeyboardHandle, { layoutId: LayoutId; th
           dpr={[1, 1.5]}
           shadows
           frameloop="always"
-          gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
+          gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.15 }}
         >
           <KeyboardSceneInner layoutId={layoutId} themeId={themeId} pressedRef={pressedRef} />
         </Canvas>

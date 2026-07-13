@@ -67,6 +67,15 @@ export function WordsDisplay({ words, currentWordIndex, currentCharIndex }: Word
         )
       })
 
+      // Perfect word sparkle
+      if (word.isPerfect && wi === currentWordIndex - 1) {
+        chars.push(
+          <span key={`sparkle-${wi}`} className="absolute top-[-10px] right-[-10px] pointer-events-none z-20 text-[var(--accent)] animate-sparkle">
+            ✨
+          </span>
+        )
+      }
+
       // Caret after last char when at end of current word
       if (isCurrentWord && currentCharIndex >= word.chars.length) {
         chars.push(
@@ -120,6 +129,6 @@ export function WordsDisplay({ words, currentWordIndex, currentCharIndex }: Word
 
 function Caret() {
   return (
-    <span className="absolute left-[-1.5px] top-[0.15em] bottom-[0.1em] w-[2.5px] bg-[var(--accent)] animate-smooth-blink rounded-full pointer-events-none z-10" />
+    <span className="absolute left-[-1.5px] top-[0.15em] bottom-[0.1em] w-[2.5px] bg-[var(--accent)] animate-smooth-blink caret-transition rounded-full pointer-events-none z-10" />
   )
 }

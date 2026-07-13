@@ -9,6 +9,7 @@ export interface WordData {
   chars: Char[]
   isCurrent: boolean
   isCompleted: boolean
+  isPerfect?: boolean
 }
 
 export type SessionState = 'idle' | 'typing' | 'finished'

@@ -79,20 +79,73 @@ body {
               0 0 1px 1px rgba(var(--accent-rgb), 0.1);
 }
 
-/* High-fidelity Caret Pulse */
+/* High-fidelity Caret Pulse (Breathing) */
 @keyframes smooth-blink {
   0%, 100% {
     opacity: 1;
-    transform: scaleY(1);
+    transform: scaleY(1) scaleX(1);
+    filter: blur(0px);
   }
   50% {
-    opacity: 0;
-    transform: scaleY(0.95);
+    opacity: 0.3;
+    transform: scaleY(0.95) scaleX(0.85);
+    filter: blur(0.5px);
   }
 }
 
 .animate-smooth-blink {
-  animation: smooth-blink 1s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  animation: smooth-blink 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Caret movement smoothing */
+.caret-transition {
+  transition: transform 0.08s cubic-bezier(0.16, 1, 0.3, 1), 
+              opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Perfect Word Sparkle Animation */
+@keyframes sparkle {
+  0% { transform: scale(0) rotate(0deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(180deg); opacity: 1; }
+  100% { transform: scale(0) rotate(360deg); opacity: 0; }
+}
+
+.animate-sparkle {
+  animation: sparkle 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Golden Shimmer for 100 consecutive chars */
+@keyframes golden-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-golden-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.2), transparent);
+  background-size: 200% auto;
+  animation: golden-shimmer 2s linear forwards;
+}
+
+/* Flow mode and transition utilities */
+.flow-transition {
+  transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+              filter 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.flow-fade-out {
+  opacity: 0;
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+/* Effect Modes (Easter Eggs) */
+.monochrome-mode {
+  filter: grayscale(100%);
+}
+
+.warm-mode {
+  filter: sepia(30%) hue-rotate(-10deg) saturate(120%);
 }
 
 *:focus-visible {

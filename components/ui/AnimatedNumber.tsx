@@ -23,5 +23,22 @@ export function AnimatedNumber({ value, className, format }: Props) {
     return controls.stop
   }, [value, motionValue])
 
-  return <motion.span className={className}>{rounded}</motion.span>
+  const yOffset = useTransform(motionValue, (latest) => {
+    // If the value is increasing, lift slightly (negative y). 
+    // We approximate this by looking at the difference from the current target value.
+    const diff = value - latest;
+    if (Math.abs(diff) < 0.1) return 0;
+    // Cap the lift
+    const lift = Math.max(-4, Math.min(4, diff * -0.5));
+    return lift;
+  });
+
+  return (
+    <motion.span 
+      className={className}
+      style={{ display: "inline-block", y: yOffset }}
+    >
+      {rounded}
+    </motion.span>
+  )
 }

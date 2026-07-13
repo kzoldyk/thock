@@ -324,6 +324,8 @@ export default function Home() {
   const setShowKeyboard = useAppStore((s) => s.setShowKeyboard)
   const setSoundEnabled = useAppStore((s) => s.setSoundEnabled)
   const keyboardType = useAppStore((s) => s.keyboardType)
+  const flowMode = useAppStore((s) => s.flowMode)
+  const activeEffect = useAppStore((s) => s.activeEffect)
 
   const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
   const fontFamily = useAppStore((s) => s.fontFamily)
@@ -392,8 +394,10 @@ export default function Home() {
   return (
     <main
       className={cn(
-        "flex flex-col flex-1 min-h-[100dvh] overflow-hidden relative transition-colors duration-500 bg-[var(--background)] text-[var(--foreground)]",
+        "flex flex-col flex-1 min-h-[100dvh] overflow-hidden relative transition-colors duration-500 bg-[var(--background)] text-[var(--foreground)] flow-transition",
         fontClass,
+        activeEffect,
+        activeEffect === "golden-shimmer" && "animate-golden-shimmer"
       )}
       style={
         {
@@ -431,7 +435,10 @@ export default function Home() {
       <div className="absolute bottom-[-15%] left-[25%] right-[25%] h-[35%] bg-gradient-to-t from-[var(--accent)]/3 to-transparent rounded-full blur-[110px] pointer-events-none z-[0] opacity-70" />
 
       {/* Header Navigation */}
-      <header className="flex items-center justify-between px-8 py-5 relative z-10 select-none">
+      <header className={cn(
+        "flex items-center justify-between px-8 py-5 relative z-10 select-none flow-transition",
+        flowMode && "flow-fade-out"
+      )}>
         {/* Left: Minimal Logo */}
         <div className="flex items-center gap-1.5 cursor-pointer">
           <span className="font-bold tracking-tight text-lg text-[var(--foreground)]">thock<span className="text-[var(--accent)]">.</span></span>
@@ -508,7 +515,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col justify-between py-4 relative z-10">
         {/* Stats bar */}
         {sessionState !== "finished" && (
-          <div className="flex justify-center">
+          <div className={cn("flex justify-center flow-transition", flowMode && "flow-fade-out")}>
             <StatsBar stats={stats} sessionState={sessionState} />
           </div>
         )}
@@ -556,7 +563,10 @@ export default function Home() {
       </div>
 
       {/* Footer hint details */}
-      <footer className="text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-70">
+      <footer className={cn(
+        "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-70 flow-transition",
+        flowMode && "flow-fade-out"
+      )}>
         Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
       </footer>
 

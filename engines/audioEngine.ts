@@ -169,10 +169,21 @@ class AudioEngine {
       const buffer = this.downBuffers[idx]
       const source = this.ctx.createBufferSource()
       source.buffer = buffer
-      source.playbackRate.value = 1 + (Math.random() - 0.5) * 0.06
+
+      // Pitch variation based on key type and randomness
+      let baseRate = 1.0;
+      if (code === "Space") baseRate = 0.8; // Deeper
+      else if (code === "Enter") baseRate = 0.85;
+      else if (code === "Backspace") baseRate = 1.1; // Sharper
+      
+      source.playbackRate.value = baseRate + (Math.random() - 0.5) * 0.04
 
       const gain = this.ctx.createGain()
-      gain.gain.value = 1.0
+      // Adjust volume based on key
+      let volume = 1.0;
+      if (code === "Space") volume = 1.3;
+      else if (code === "Enter") volume = 1.2;
+      gain.gain.value = volume;
 
       // Stereo panning fallback check
       let panNode: StereoPannerNode | null = null
@@ -224,10 +235,21 @@ class AudioEngine {
       const buffer = this.upBuffers[idx]
       const source = this.ctx.createBufferSource()
       source.buffer = buffer
-      source.playbackRate.value = 1 + (Math.random() - 0.5) * 0.06
+
+      // Pitch variation based on key type and randomness
+      let baseRate = 1.0;
+      if (code === "Space") baseRate = 0.8; // Deeper
+      else if (code === "Enter") baseRate = 0.85;
+      else if (code === "Backspace") baseRate = 1.1; // Sharper
+      
+      source.playbackRate.value = baseRate + (Math.random() - 0.5) * 0.04
 
       const gain = this.ctx.createGain()
-      gain.gain.value = 0.7
+      // Adjust volume based on key
+      let volume = 0.7;
+      if (code === "Space") volume = 0.9;
+      else if (code === "Enter") volume = 0.85;
+      gain.gain.value = volume;
 
       // Stereo panning fallback check
       let panNode: StereoPannerNode | null = null

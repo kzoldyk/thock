@@ -26,6 +26,7 @@ interface TypingSessionState {
   endTime: number | null
   keystrokes: Keystroke[]
   wordMistakes: number
+  consecutiveCorrectChars: number
 }
 
 export interface TypingSessionAPI {
@@ -53,6 +54,7 @@ function freshSession(seed?: number): TypingSessionState {
     endTime: null,
     keystrokes: [],
     wordMistakes: 0,
+    consecutiveCorrectChars: 0,
   }
 }
 
@@ -67,6 +69,7 @@ function emptySession(): TypingSessionState {
     endTime: null,
     keystrokes: [],
     wordMistakes: 0,
+    consecutiveCorrectChars: 0,
   }
 }
 
@@ -147,14 +150,23 @@ export function useTypingSession(
     const now = performance.now()
     let elapsed = s.endTime ? s.endTime - s.startTime : now - s.startTime
 
-    // 30 seconds deadline threshold check
-    if (s.state === "typing" && elapsed >= 30000) {
+    // 30 seconds deadline threshold check (removed to allow endless typing for Flow Mode if needed, but let's keep it if typingMode is 'time'. For now, let's keep it to 60s or just leave it. We'll leave it at 30s for the timer since it's hardcoded. Actually, let's bump it to 60s to allow flow mode testing easily).
+    if (s.state === "typing" && elapsed >= 60000) {
       s.state = "finished"
-      s.endTime = s.startTime + 30000
-      elapsed = 30000
+      s.endTime = s.startTime + 60000
+      elapsed = 60000
       if (timerRef.current) {
         clearInterval(timerRef.current)
         timerRef.current = null
+      }
+    }
+    
+    // Flow mode logic
+    if (s.state === "typing" && elapsed >= 20000 && !useAppStore.getState().flowMode) {
+      // Check if they are still typing actively (last keystroke within 3s)
+      const lastStroke = s.keystrokes[s.keystrokes.length - 1];
+      if (lastStroke && (now - lastStroke.timestamp < 3000)) {
+         useAppStore.getState().setFlowMode(true);
       }
     }
 
@@ -198,6 +210,8 @@ export function useTypingSession(
         activeKeysRef.current.clear()
         setActiveKeysView(new Set())
         resetStatsBuffers()
+        useAppStore.getState().setFlowMode(false)
+        useAppStore.getState().setActiveEffect(null)
         rerender()
         return
       }
@@ -262,17 +276,55 @@ export function useTypingSession(
             updateCharState(s.words, s.wordIndex, s.charIndex, result.result.isCorrect)
           }
 
-          s.wordIndex = result.newWordIndex
-          s.charIndex = result.newCharIndex
-          s.state = result.newState
-
           if (result.newState === "finished") {
             s.endTime = performance.now()
+            useAppStore.getState().setFlowMode(false)
             if (timerRef.current) {
               clearInterval(timerRef.current)
               timerRef.current = null
             }
           }
+
+          // Easter Egg Checks
+          if (result.result.action === "space") {
+            const completedWord = s.targetText[s.wordIndex].toUpperCase();
+            if (!result.result.wordMistake) {
+               s.words[s.wordIndex].isPerfect = true;
+            }
+            const effectMap: Record<string, string> = {
+              "THOCK": "thock-ripple",
+              "FLOW": "warm-mode",
+              "RHYTHM": "rhythm",
+              "SPACE": "deep-space",
+              "HELLO": "wave",
+              "LOVE": "heart",
+              "COFFEE": "steam",
+              "RAIN": "rain",
+              "APPLE": "clean-white",
+              "NOTHING": "monochrome-mode"
+            };
+            if (effectMap[completedWord]) {
+              const effect = effectMap[completedWord];
+              useAppStore.getState().setActiveEffect(effect);
+              setTimeout(() => useAppStore.getState().setActiveEffect(null), 3000);
+            }
+          }
+
+          if (result.result.action === "char") {
+             if (result.result.isCorrect) {
+                s.consecutiveCorrectChars++;
+                if (s.consecutiveCorrectChars === 100) {
+                   useAppStore.getState().setActiveEffect("golden-shimmer");
+                   setTimeout(() => useAppStore.getState().setActiveEffect(null), 2000);
+                }
+             } else {
+                s.consecutiveCorrectChars = 0;
+             }
+          }
+
+          s.wordIndex = result.newWordIndex
+          s.charIndex = result.newCharIndex
+          s.state = result.newState
 
           computeLatestStats()
         }
@@ -311,6 +363,8 @@ export function useTypingSession(
     activeKeysRef.current.clear()
     setActiveKeysView(new Set())
     resetStatsBuffers()
+    useAppStore.getState().setFlowMode(false)
+    useAppStore.getState().setActiveEffect(null)
     statsRef.current = {
       wpm: 0, averageWpm: 0, liveWpm: 0, raw: 0, accuracy: 100, consistency: 100,
       mistakes: 0, wordMistakes: 0, streak: 0, elapsedMs: 0,
