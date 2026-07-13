@@ -23,6 +23,8 @@ export type FontFamily =
 
 export interface TypingStats {
   wpm: number
+  averageWpm: number
+  liveWpm: number
   raw: number
   accuracy: number
   consistency: number

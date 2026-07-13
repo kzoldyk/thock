@@ -509,7 +509,7 @@ export default function Home() {
         {/* Stats bar */}
         {sessionState !== "finished" && (
           <div className="flex justify-center">
-            <StatsBar stats={stats} />
+            <StatsBar stats={stats} sessionState={sessionState} />
           </div>
         )}
 

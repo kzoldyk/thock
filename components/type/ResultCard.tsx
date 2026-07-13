@@ -24,15 +24,15 @@ export function ResultCard({ stats, onRestart }: Props) {
 
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-2xl font-bold tabular-nums">{stats.raw}</div>
+            <div className="text-2xl font-bold tabular-nums">{Math.round(stats.raw)}</div>
             <div className="text-xs text-[var(--muted)] uppercase tracking-widest mt-0.5">Raw</div>
           </div>
           <div>
-            <div className="text-2xl font-bold tabular-nums">{stats.accuracy}%</div>
+            <div className="text-2xl font-bold tabular-nums">{Math.round(stats.accuracy)}%</div>
             <div className="text-xs text-[var(--muted)] uppercase tracking-widest mt-0.5">Accuracy</div>
           </div>
           <div>
-            <div className="text-2xl font-bold tabular-nums">{stats.consistency}%</div>
+            <div className="text-2xl font-bold tabular-nums">{Math.round(stats.consistency)}%</div>
             <div className="text-xs text-[var(--muted)] uppercase tracking-widest mt-0.5">Consistency</div>
           </div>
           <div>

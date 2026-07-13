@@ -1,4 +1,11 @@
 import type { WordData, Char, CharState, TypingStats, Keystroke, SessionState } from "@/types"
+import type { StatsSample } from "./metrics/history"
+import { calculateAverageWpm, calculateRollingWpm, smoothMetric } from "./metrics/wpm"
+import { calculateAverageRawWpm } from "./metrics/rawWpm"
+import { calculateAccuracy } from "./metrics/accuracy"
+import { calculateConsistencyFromHistory } from "./metrics/consistency"
+import { calculateMistakes } from "./metrics/mistakes"
+import { calculateBestStreak } from "./metrics/streak"
 
 export function createWordData(word: string): Char[] {
   return word.split("").map((ch) => ({
@@ -181,83 +188,39 @@ export function computeStats(
   targetText: string[],
   elapsedMs: number,
   keystrokes: Keystroke[],
-  wordMistakes: number,
+  history: StatsSample[],
   currentWordIndex: number,
   currentCharIndex: number,
 ): TypingStats {
-  let correctLetters = 0
-  let mistakes = 0
-  let spaceCount = 0
-
-  for (const key of keystrokes) {
-    if (key.code === "Space") spaceCount++
-  }
-
-  for (const word of words) {
-    for (const char of word.chars) {
-      if (char.state === "correct") correctLetters++
-      if (char.state === "incorrect" || char.state === "extra") mistakes++
-    }
-  }
-
-  const correctChars = correctLetters + spaceCount
+  const mistakeStats = calculateMistakes(words, targetText)
   const totalTyped = keystrokes.filter((key) => key.code !== "Backspace").length
-  const elapsedMin = Math.max(elapsedMs / 60000, 0.0001)
-  const wpm = Math.round((correctChars / 5) / elapsedMin)
-  const raw = Math.round((totalTyped / 5) / elapsedMin)
-  const accuracy = totalTyped > 0 ? Math.round((correctChars / Math.max(totalTyped + wordMistakes, 1)) * 100) : 100
+  const averageWpm = calculateAverageWpm(mistakeStats.correctCharacters + mistakeStats.correctSpaces, elapsedMs)
+  const raw = calculateAverageRawWpm(totalTyped, elapsedMs)
 
-  const wpmSamples = getWpmSamples(words, elapsedMin)
-  const consistency = computeConsistency(wpmSamples, wpm)
-
-  let streak = 0
-  let currentStreak = 0
-  for (const w of words) {
-    for (const c of w.chars) {
-      if (c.state === "correct") {
-        currentStreak++
-        streak = Math.max(streak, currentStreak)
-      } else if (c.state === "incorrect" || c.state === "extra") {
-        currentStreak = 0
-      }
-    }
-  }
+  const latestHistory = history[history.length - 1]
+  const liveWpmUnsmoothed = history.length > 0 ? calculateRollingWpm(history) : averageWpm
+  const liveWpm = smoothMetric(latestHistory?.liveWpm ?? null, liveWpmUnsmoothed)
+  const correctKeystrokes = mistakeStats.correctCharacters + mistakeStats.correctSpaces
+  const incorrectKeystrokes = mistakeStats.incorrectCharacters
+  const accuracy = calculateAccuracy(correctKeystrokes, incorrectKeystrokes)
+  const consistency = calculateConsistencyFromHistory(history)
+  const streak = calculateBestStreak(words)
+  const wpm = averageWpm
 
   return {
     wpm,
+    averageWpm,
+    liveWpm,
     raw,
     accuracy,
     consistency,
-    mistakes,
-    wordMistakes,
+    mistakes: mistakeStats.mistakes,
+    wordMistakes: mistakeStats.wordMistakes,
     streak,
     elapsedMs,
     totalTyped,
-    correctChars,
+    correctChars: correctKeystrokes,
   }
-}
-
-function getWpmSamples(words: WordData[], elapsedMin: number): number[] {
-  const samples: number[] = []
-  let typed = 0
-  for (const w of words) {
-    for (const c of w.chars) {
-      if (c.state === "correct" || c.state === "incorrect") {
-        typed++
-      }
-    }
-  }
-  if (typed > 0) samples.push(Math.round((typed / 5) / Math.max(elapsedMin, 0.001)))
-  return samples.length > 0 ? samples : [0]
-}
-
-function computeConsistency(samples: number[], currentAvg: number): number {
-  if (samples.length < 2 || currentAvg === 0) return 100
-  const mean = samples.reduce((a, b) => a + b, 0) / samples.length
-  const variance = samples.reduce((a, b) => a + (b - mean) ** 2, 0) / samples.length
-  const stdDev = Math.sqrt(variance)
-  const cv = stdDev / mean
-  return Math.max(0, Math.round((1 - cv) * 100))
 }
 
 export function updateCharState(

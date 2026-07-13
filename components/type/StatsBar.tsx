@@ -1,6 +1,6 @@
 "use client"
 
-import type { TypingStats } from "@/types"
+import type { SessionState, TypingStats } from "@/types"
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber"
 import { useAppStore } from "@/stores/useAppStore"
 import { cn } from "@/lib/utils"
@@ -44,21 +44,24 @@ function StatItem({ label, value, suffix, format }: StatItemProps) {
 
 interface Props {
   stats: TypingStats
+  sessionState: SessionState
   wordIndex?: number
   totalWords?: number
 }
 
-export function StatsBar({ stats }: Props) {
+export function StatsBar({ stats, sessionState }: Props) {
   const formatTime = (ms: number) => {
     const sec = Math.floor(ms / 1000)
     const timeLeft = Math.max(30 - sec, 0)
     return `${timeLeft}s`
   }
 
+  const displayWpm = sessionState === "finished" ? stats.wpm : stats.liveWpm
+
   return (
     <div className="w-full max-w-[900px] mx-auto px-8 my-6">
       <div className="flex flex-wrap justify-between gap-3">
-        <StatItem label="WPM" value={stats.wpm} />
+        <StatItem label="WPM" value={displayWpm} />
         <StatItem label="Acc" value={stats.accuracy} suffix="%" />
         <StatItem label="Raw" value={stats.raw} />
         <StatItem label="Cons" value={stats.consistency} suffix="%" />
