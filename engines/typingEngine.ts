@@ -228,6 +228,7 @@ export function updateCharState(
   wordIndex: number,
   charIndex: number,
   isCorrect: boolean,
+  typedChar?: string,
 ): void {
   const word = words[wordIndex]
   if (!word) return
@@ -235,7 +236,7 @@ export function updateCharState(
     word.chars[charIndex].state = isCorrect ? "correct" : "incorrect"
   } else {
     word.chars.push({
-      char: "",
+      char: typedChar || "",
       state: "extra",
     })
   }
@@ -249,6 +250,10 @@ export function unsetCharState(
   const word = words[wordIndex]
   if (!word) return
   if (charIndex >= 0 && charIndex < word.chars.length) {
-    word.chars[charIndex].state = "untyped"
+    if (word.chars[charIndex].state === "extra") {
+      word.chars.splice(charIndex, 1)
+    } else {
+      word.chars[charIndex].state = "untyped"
+    }
   }
 }

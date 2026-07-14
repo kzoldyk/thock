@@ -41,8 +41,37 @@ export interface TypingSessionAPI {
   getHistory: () => StatsSample[]
 }
 
-function freshSession(seed?: number): TypingSessionState {
-  const targetText = generateWords(200, seed)
+const DEV_QUOTES = [
+  "Talk is cheap. Show me the code.",
+  "Programs must be written for people to read, and only incidentally for machines to execute.",
+  "Simplicity is the soul of efficiency.",
+  "Before software can be reusable it first has to be usable.",
+  "There are only two hard things in Computer Science: cache invalidation and naming things.",
+  "Make it work, make it right, make it fast.",
+  "First, solve the problem. Then, write the code.",
+  "Computers are good at following instructions, but not at reading your mind.",
+  "Code is like humor. When you have to explain it, it is bad.",
+  "Fix the cause, not the symptom."
+]
+
+function getQuoteForSeed(seed: number): string[] {
+  const idx = Math.floor(Math.abs(Math.sin(seed)) * DEV_QUOTES.length)
+  const quote = DEV_QUOTES[idx] || DEV_QUOTES[0]
+  return quote.split(" ")
+}
+
+function getTargetTextForMode(mode: "time" | "words" | "quotes", seed: number): string[] {
+  if (mode === "time") {
+    return generateWords(150, seed)
+  } else if (mode === "words") {
+    return generateWords(25, seed)
+  } else {
+    return getQuoteForSeed(seed)
+  }
+}
+
+function freshSession(mode: "time" | "words" | "quotes", seed?: number): TypingSessionState {
+  const targetText = getTargetTextForMode(mode, seed ?? Date.now())
   const words = createWords(targetText)
   words[0].isCurrent = true
   return {
@@ -77,6 +106,7 @@ function emptySession(): TypingSessionState {
 export function useTypingSession(
   keyboardRef: React.RefObject<{ pressKey: (code: string) => void; releaseKey: (code: string) => void } | null>,
   layoutId: LayoutId,
+  disabled?: boolean,
 ): TypingSessionAPI {
   const sessionRef = useRef<TypingSessionState>(emptySession())
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -104,9 +134,9 @@ export function useTypingSession(
     totalTyped: 0,
     correctChars: 0,
   }))
-  const hydrated = useRef(false)
 
   const layout = useMemo(() => getLayout(layoutId), [layoutId])
+  const typingMode = useAppStore((s) => s.typingMode)
 
   const rerender = useCallback(() => {
     setViewState({ ...sessionRef.current })
@@ -119,21 +149,14 @@ export function useTypingSession(
     lastSampleAtRef.current = 0
   }, [])
 
-  // Re-seed words after hydration so they differ per session
+  // Re-seed words after hydration or mode change so they differ per session
   useEffect(() => {
-    if (hydrated.current) return
-    hydrated.current = true
     const seed = Date.now()
-    const targetText = generateWords(30, seed)
-    sessionRef.current = {
-      ...freshSession(seed),
-      words: createWords(targetText),
-      targetText,
-    }
+    sessionRef.current = freshSession(typingMode, seed)
     activeKeysRef.current.clear()
     resetStatsBuffers()
     rerender()
-  }, [rerender, resetStatsBuffers])
+  }, [typingMode, rerender, resetStatsBuffers])
 
   const getPanValue = useCallback(
     (code: string): number => {
@@ -151,8 +174,8 @@ export function useTypingSession(
     const now = performance.now()
     let elapsed = s.endTime ? s.endTime - s.startTime : now - s.startTime
 
-    // 30 seconds deadline threshold check
-    if (s.state === "typing" && elapsed >= 30000) {
+    // 30 seconds deadline threshold check (only in time mode)
+    if (typingMode === "time" && s.state === "typing" && elapsed >= 30000) {
       s.state = "finished"
       s.endTime = s.startTime + 30000
       elapsed = 30000
@@ -199,6 +222,10 @@ export function useTypingSession(
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      const isSettingsOpen = useAppStore.getState().settingsOpen
+      if (disabled || isSettingsOpen) {
+        return
+      }
       if (e.repeat) return
       const { key, code } = e
       const s = sessionRef.current
@@ -206,7 +233,7 @@ export function useTypingSession(
       if (code === "Tab") {
         e.preventDefault()
         const seed = Date.now()
-        sessionRef.current = freshSession(seed)
+        sessionRef.current = freshSession(typingMode, seed)
         timerRef.current = null
         activeKeysRef.current.clear()
         setActiveKeysView(new Set())
@@ -234,11 +261,6 @@ export function useTypingSession(
 
         activeKeysRef.current.add(code)
         setActiveKeysView(new Set(activeKeysRef.current))
-        setTimeout(() => {
-          activeKeysRef.current.delete(code)
-          setActiveKeysView(new Set(activeKeysRef.current))
-          rerender()
-        }, 100)
 
         if (useAppStore.getState().soundEnabled) {
           const pan = getPanValue(code)
@@ -256,7 +278,7 @@ export function useTypingSession(
           s.words,
           s.targetText,
           s.state,
-        )
+          )
 
         if (result.shouldUpdate) {
           s.keystrokes.push({
@@ -274,7 +296,7 @@ export function useTypingSession(
           if (result.result.action === "backspace" && result.newWordIndex === s.wordIndex) {
             unsetCharState(s.words, s.wordIndex, s.charIndex - 1)
           } else if (result.result.action === "char") {
-            updateCharState(s.words, s.wordIndex, s.charIndex, result.result.isCorrect)
+            updateCharState(s.words, s.wordIndex, s.charIndex, result.result.isCorrect, key)
           }
 
           if (result.newState === "finished") {
@@ -332,18 +354,28 @@ export function useTypingSession(
         }
       }
     },
-    [keyboardRef, getPanValue, computeLatestStats, rerender, resetStatsBuffers],
+    [keyboardRef, getPanValue, computeLatestStats, rerender, resetStatsBuffers, typingMode, disabled],
   )
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown)
     const handleKeyUp = (e: KeyboardEvent) => {
       keyboardRef.current?.releaseKey(e.code)
+      if (activeKeysRef.current.has(e.code)) {
+        activeKeysRef.current.delete(e.code)
+        setActiveKeysView(new Set(activeKeysRef.current))
+      }
+    }
+    const handleBlur = () => {
+      activeKeysRef.current.clear()
+      setActiveKeysView(new Set())
     }
     window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", handleBlur)
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("blur", handleBlur)
     }
   }, [handleKeyDown, keyboardRef])
 
@@ -357,7 +389,7 @@ export function useTypingSession(
 
   const restart = useCallback(() => {
     const seed = Date.now()
-    sessionRef.current = freshSession(seed)
+    sessionRef.current = freshSession(typingMode, seed)
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
@@ -373,7 +405,7 @@ export function useTypingSession(
       totalTyped: 0, correctChars: 0,
     }
     rerender()
-  }, [rerender, resetStatsBuffers])
+  }, [typingMode, rerender, resetStatsBuffers])
 
   const emitKeyEvent = useCallback(
     (code: string, type: "down" | "up") => {

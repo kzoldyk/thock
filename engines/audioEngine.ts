@@ -1,3 +1,5 @@
+import { useAppStore } from "@/stores/useAppStore"
+
 class AudioEngine {
   private ctx: AudioContext | null = null
   private downBuffers: AudioBuffer[] = []
@@ -5,11 +7,30 @@ class AudioEngine {
   private lastDownIndex = -1
   private lastUpIndex = -1
   private masterGain: GainNode | null = null
+  private convolver: ConvolverNode | null = null
+  private reverbGain: GainNode | null = null
   private initialized = false
   private loaded = false
 
   get isReady(): boolean {
     return this.initialized && this.loaded
+  }
+
+  private createReverbImpulseResponse(duration: number, decay: number): AudioBuffer {
+    if (!this.ctx) throw new Error("No AudioContext initialized")
+    const sampleRate = this.ctx.sampleRate
+    const length = sampleRate * duration
+    const impulse = this.ctx.createBuffer(2, length, sampleRate)
+    const left = impulse.getChannelData(0)
+    const right = impulse.getChannelData(1)
+    
+    for (let i = 0; i < length; i++) {
+      const percent = i / length
+      const decayFactor = Math.exp(-percent * decay)
+      left[i] = (Math.random() * 2 - 1) * decayFactor
+      right[i] = (Math.random() * 2 - 1) * decayFactor
+    }
+    return impulse
   }
 
   async init() {
@@ -22,10 +43,28 @@ class AudioEngine {
       }
       const ctx = new AudioCtx()
       this.ctx = ctx
+      
       const masterGain = ctx.createGain()
       this.masterGain = masterGain
       masterGain.gain.value = 0.8
       masterGain.connect(ctx.destination)
+
+      // Parallel Reverb setup
+      try {
+        const convolver = ctx.createConvolver()
+        convolver.buffer = this.createReverbImpulseResponse(1.5, 4.0)
+        this.convolver = convolver
+
+        const reverbGain = ctx.createGain()
+        reverbGain.gain.value = useAppStore.getState().reverb
+        this.reverbGain = reverbGain
+
+        convolver.connect(reverbGain)
+        reverbGain.connect(masterGain)
+      } catch (err) {
+        console.error("[audio] reverb setup failed", err)
+      }
+
       this.initialized = true
       console.warn("[audio] engine initialized, ctx state:", ctx.state)
 
@@ -176,21 +215,25 @@ class AudioEngine {
       else if (code === "Enter") baseRate = 0.85;
       else if (code === "Backspace") baseRate = 1.1; // Sharper
       
-      source.playbackRate.value = baseRate + (Math.random() - 0.5) * 0.04
+      const userPitch = useAppStore.getState().pitch
+      source.playbackRate.value = (baseRate + (Math.random() - 0.5) * 0.04) * userPitch
 
       const gain = this.ctx.createGain()
-      // Adjust volume based on key
+      // Adjust volume based on key and keyVolume setting
       let volume = 1.0;
       if (code === "Space") volume = 1.3;
       else if (code === "Enter") volume = 1.2;
-      gain.gain.value = volume;
+      
+      const keyVolume = useAppStore.getState().keyVolume
+      gain.gain.value = volume * keyVolume
 
       // Stereo panning fallback check
       let panNode: StereoPannerNode | null = null
+      const stereoWidth = useAppStore.getState().stereoWidth
       if (typeof this.ctx.createStereoPanner === "function") {
         try {
           panNode = this.ctx.createStereoPanner()
-          panNode.pan.value = panValue
+          panNode.pan.value = panValue * stereoWidth
         } catch (e) {
           console.warn("[audio] createStereoPanner failed, falling back to mono:", e)
         }
@@ -204,6 +247,10 @@ class AudioEngine {
       }
 
       gain.connect(this.masterGain)
+      if (this.convolver) {
+        gain.connect(this.convolver)
+      }
+      
       source.start()
       console.warn("[audio] playDown trigger source.start() succeeded for buffer index:", idx)
     } catch (e) {
@@ -242,21 +289,25 @@ class AudioEngine {
       else if (code === "Enter") baseRate = 0.85;
       else if (code === "Backspace") baseRate = 1.1; // Sharper
       
-      source.playbackRate.value = baseRate + (Math.random() - 0.5) * 0.04
+      const userPitch = useAppStore.getState().pitch
+      source.playbackRate.value = (baseRate + (Math.random() - 0.5) * 0.04) * userPitch
 
       const gain = this.ctx.createGain()
-      // Adjust volume based on key
+      // Adjust volume based on key and keyVolume setting
       let volume = 0.7;
       if (code === "Space") volume = 0.9;
       else if (code === "Enter") volume = 0.85;
-      gain.gain.value = volume;
+      
+      const keyVolume = useAppStore.getState().keyVolume
+      gain.gain.value = volume * keyVolume
 
       // Stereo panning fallback check
       let panNode: StereoPannerNode | null = null
+      const stereoWidth = useAppStore.getState().stereoWidth
       if (typeof this.ctx.createStereoPanner === "function") {
         try {
           panNode = this.ctx.createStereoPanner()
-          panNode.pan.value = panValue
+          panNode.pan.value = panValue * stereoWidth
         } catch (e) {
           console.warn("[audio] createStereoPanner failed, falling back to mono:", e)
         }
@@ -270,6 +321,10 @@ class AudioEngine {
       }
 
       gain.connect(this.masterGain)
+      if (this.convolver) {
+        gain.connect(this.convolver)
+      }
+
       source.start()
       console.warn("[audio] playUp trigger source.start() succeeded for buffer index:", idx)
     } catch (e) {
@@ -279,6 +334,10 @@ class AudioEngine {
 
   setVolume(v: number) {
     if (this.masterGain) this.masterGain.gain.value = v
+  }
+
+  setReverb(v: number) {
+    if (this.reverbGain) this.reverbGain.gain.value = v
   }
 
   dispose() {

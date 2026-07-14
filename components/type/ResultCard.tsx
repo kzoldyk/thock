@@ -75,7 +75,7 @@ export function ResultCard({ stats, onRestart, history }: Props) {
         {/* WPM Chart Background */}
         <div className="absolute inset-x-0 bottom-[120px] top-[140px] opacity-10 dark:opacity-[0.07] pointer-events-none overflow-hidden mask-fade-out">
            {pathData && (
-             <svg width="100%" height="100%" preserveAspectRatio="none" className="drop-shadow-2xl">
+             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="drop-shadow-2xl">
                <motion.path
                  d={pathData}
                  fill="none"

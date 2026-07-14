@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useMemo, forwardRef, useImperativeHandle } from "react"
+import { useRef, useMemo, forwardRef, useImperativeHandle, useEffect } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { ContactShadows, useGLTF } from "@react-three/drei"
 import * as THREE from "three"
@@ -9,6 +9,7 @@ import { VortexKeyboardCase } from "./VortexKeyboardCase"
 import { getLayout } from "@/lib/keyboard-layouts"
 import { keyboardThemes } from "@/lib/themes"
 import { useAppStore } from "@/stores/useAppStore"
+import { hapticEngine } from "@/engines/hapticEngine"
 import type { LayoutId } from "@/types"
 
 useGLTF.preload("/models/vortexseries_mechanical_keyboard_gt-8__nj80.glb")
@@ -51,6 +52,25 @@ function getKeyType(code: string): "esc" | "modifier" | "number" | "alpha" {
 function KeyboardSceneInner({ layoutId, themeId, pressedRef }: KeyboardSceneInnerProps) {
   const { camera } = useThree()
   const shakeRef = useRef({ x: 0, y: 0, t: 0 })
+
+  useEffect(() => {
+    hapticEngine.setShakeCallback((code) => {
+      // Trigger a subtle camera shake on key presses
+      let shakeIntensity = 0.006
+      if (code === "Space") shakeIntensity = 0.012
+      if (code === "Enter") shakeIntensity = 0.015
+      if (code === "Backspace") shakeIntensity = 0.008
+
+      shakeRef.current = {
+        x: (Math.random() - 0.5) * shakeIntensity,
+        y: (Math.random() - 0.5) * shakeIntensity,
+        t: 0.15
+      }
+    })
+    return () => {
+      hapticEngine.setShakeCallback(() => {})
+    }
+  }, [])
 
   const layout = useMemo(() => getLayout(layoutId), [layoutId])
   const theme = useMemo(

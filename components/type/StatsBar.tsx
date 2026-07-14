@@ -50,10 +50,14 @@ interface Props {
 }
 
 export function StatsBar({ stats, sessionState }: Props) {
+  const mode = useAppStore((s) => s.typingMode)
   const formatTime = (ms: number) => {
-    const sec = Math.floor(ms / 1000)
-    const timeLeft = Math.max(30 - sec, 0)
-    return `${timeLeft}s`
+    const sec = ms / 1000
+    if (mode === "time") {
+      const timeLeft = Math.max(30 - Math.floor(sec), 0)
+      return `${timeLeft}s`
+    }
+    return `${sec.toFixed(1)}s`
   }
 
   const displayWpm = sessionState === "finished" ? stats.wpm : stats.liveWpm

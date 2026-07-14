@@ -369,6 +369,7 @@ export default function Home() {
   const reducedMotion = useAppStore((s) => s.reducedMotion)
   const [appReady, setAppReady] = useState(false)
   const [activeTab, setActiveTab] = useState("Practice")
+  const [windowFocused, setWindowFocused] = useState(true)
 
   const appThemeId = useAppStore((s) => s.appThemeId)
   const layoutId = useAppStore((s) => s.layoutId)
@@ -387,6 +388,17 @@ export default function Home() {
   const fontFamily = useAppStore((s) => s.fontFamily)
   const fontClass = getFontClass(fontFamily)
 
+  useEffect(() => {
+    const handleFocus = () => setWindowFocused(true)
+    const handleBlur = () => setWindowFocused(false)
+    window.addEventListener("focus", handleFocus)
+    window.addEventListener("blur", handleBlur)
+    return () => {
+      window.removeEventListener("focus", handleFocus)
+      window.removeEventListener("blur", handleBlur)
+    }
+  }, [])
+
   const {
     words,
     stats,
@@ -396,15 +408,17 @@ export default function Home() {
     restart,
     activeKeys,
     getHistory,
-  } = useTypingSession(keyboardRef, layoutId)
+  } = useTypingSession(keyboardRef, layoutId, !windowFocused || activeTab !== "Practice")
 
   const volume = useAppStore((s) => s.volume)
+  const reverb = useAppStore((s) => s.reverb)
 
   useEffect(() => {
     let disposed = false
     audioEngine.init().then(() => {
       if (disposed) return
       audioEngine.setVolume(useAppStore.getState().volume)
+      audioEngine.setReverb(useAppStore.getState().reverb)
       audioEngine.loadPack("default").then(() => {
         if (!disposed) setAppReady(true)
       })
@@ -418,6 +432,10 @@ export default function Home() {
   useEffect(() => {
     audioEngine.setVolume(volume)
   }, [volume])
+
+  useEffect(() => {
+    audioEngine.setReverb(reverb)
+  }, [reverb])
 
   useEffect(() => {
     const root = document.documentElement
@@ -523,13 +541,18 @@ export default function Home() {
 
         {/* Center: Premium Nav Items */}
         <nav className="hidden sm:flex items-center p-0.5 bg-black/5 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 backdrop-blur-sm">
-          {["Practice", "Challenges", "Leaderboard", "Statistics", "Themes"].map((tab) => {
+          {["Practice", "Challenges", "Leaderboard", "Statistics"].map((tab) => {
+            const isPractice = tab === "Practice"
             const isActive = activeTab === tab
             return (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="relative px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors duration-300"
+                disabled={!isPractice}
+                onClick={() => isPractice && setActiveTab(tab)}
+                className={cn(
+                  "relative px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 flex items-center gap-1.5",
+                  !isPractice ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                )}
               >
                 {isActive && (
                   <motion.span
@@ -543,6 +566,11 @@ export default function Home() {
                 )}>
                   {tab}
                 </span>
+                {!isPractice && (
+                  <span className="text-[7.5px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 text-[var(--muted)] uppercase tracking-widest scale-[0.85] font-bold">
+                    Soon
+                  </span>
+                )}
               </button>
             )
           })}
@@ -674,6 +702,22 @@ export default function Home() {
       )}
 
       <SettingsPanel isDarkMode={isDark} fontClass={fontClass} />
+
+      {/* Click to Focus Overlay */}
+      {sessionState === "typing" && !windowFocused && (
+        <div 
+          onClick={() => window.focus()}
+          className="fixed inset-0 backdrop-blur-md bg-zinc-950/20 z-40 flex items-center justify-center cursor-pointer select-none"
+        >
+          <div className="glass-panel p-6 rounded-2xl text-center shadow-2xl max-w-xs animate-pulse">
+            <span className="text-xl">⚠️</span>
+            <h3 className="mt-2 text-sm font-semibold text-[var(--foreground)]">Session Paused</h3>
+            <p className="mt-1 text-xs text-[var(--muted)] leading-relaxed">
+              Window focus lost. Click anywhere on this screen to resume typing.
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
