@@ -559,11 +559,11 @@ export default function Home() {
         {/* Left: Minimal Logo */}
         <div className="flex items-center gap-2.5 cursor-pointer select-none">
           <Image
-            src="/logo.jpg"
+            src="/logo.png"
             alt="thock logo"
-            width={32}
-            height={32}
-            className="w-8 h-8 rounded-xl border border-[var(--chrome-border)] shadow-sm bg-[var(--chrome-surface-soft)] object-cover"
+            width={40}
+            height={40}
+            className="w-10 h-10 object-contain"
           />
           <span className="font-bold tracking-tight text-lg text-[var(--foreground)]">thock<span className="text-[var(--accent)]">.</span></span>
         </div>
