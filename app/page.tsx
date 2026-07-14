@@ -393,6 +393,7 @@ export default function Home() {
   const keyboardRef = useRef<KeyboardHandle>(null)
   const [activeTab, setActiveTab] = useState("Practice")
   const [windowFocused, setWindowFocused] = useState(true)
+  const [visitorCount, setVisitorCount] = useState<number | null>(null)
 
   const appThemeId = useAppStore((s) => s.appThemeId)
   const layoutId = useAppStore((s) => s.layoutId)
@@ -449,6 +450,19 @@ export default function Home() {
       disposed = true
       audioEngine.dispose()
     }
+  }, [])
+
+  useEffect(() => {
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    
+    fetch(`/api/visits?local=${isLocal}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.count === "number") {
+          setVisitorCount(data.count)
+        }
+      })
+      .catch(err => console.warn("[counter] failed to fetch visitor count:", err))
   }, [])
 
   useEffect(() => {
@@ -724,10 +738,25 @@ export default function Home() {
       {/* Footer hint details */}
       {activeTab === "Practice" && (
         <footer className={cn(
-          "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-70 flow-transition",
+          "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-75 flow-transition",
           (flowMode || sessionState === "typing") && "flow-fade-out"
         )}>
-          Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
+          <div>
+            Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
+          </div>
+          {visitorCount !== null && (
+            <div className="mt-4 flex items-center justify-center gap-2 select-none">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium tracking-normal normal-case border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] opacity-90 transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] group cursor-default">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]"></span>
+                </span>
+                <span>
+                  Visited by <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> typists
+                </span>
+              </span>
+            </div>
+          )}
         </footer>
       )}
 
