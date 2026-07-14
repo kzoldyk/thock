@@ -40,6 +40,9 @@ interface AppStore {
   setFlowMode: (v: boolean) => void
   activeEffect: string | null
   setActiveEffect: (v: string | null) => void
+  explosions: { id: string; x: number; y: number }[]
+  addExplosion: () => void
+  removeExplosion: (id: string) => void
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -79,4 +82,16 @@ export const useAppStore = create<AppStore>((set) => ({
   setFlowMode: (v) => set({ flowMode: v }),
   activeEffect: null,
   setActiveEffect: (v) => set({ activeEffect: v }),
+  explosions: [],
+  addExplosion: () => set((state) => {
+    // Generate random x, y between 10% and 90% of screen to keep them visible
+    const x = 10 + Math.random() * 80;
+    const y = 10 + Math.random() * 80;
+    return { 
+      explosions: [...state.explosions, { id: Math.random().toString(36).substring(2, 9), x, y }] 
+    };
+  }),
+  removeExplosion: (id) => set((state) => ({
+    explosions: state.explosions.filter(e => e.id !== id)
+  })),
 }))

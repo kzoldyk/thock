@@ -10,7 +10,7 @@ import {
   updateCharState,
   unsetCharState,
 } from "@/engines/typingEngine"
-import { createStatsHistory, type StatsHistoryBuffer } from "@/engines/metrics/history"
+import { createStatsHistory, type StatsHistoryBuffer, type StatsSample } from "@/engines/metrics/history"
 import { audioEngine } from "@/engines/audioEngine"
 import { hapticEngine } from "@/engines/hapticEngine"
 import { getLayout } from "@/lib/keyboard-layouts"
@@ -38,6 +38,7 @@ export interface TypingSessionAPI {
   restart: () => void
   activeKeys: Set<string>
   emitKeyEvent: (code: string, type: "down" | "up") => void
+  getHistory: () => StatsSample[]
 }
 
 function freshSession(seed?: number): TypingSessionState {
@@ -150,11 +151,11 @@ export function useTypingSession(
     const now = performance.now()
     let elapsed = s.endTime ? s.endTime - s.startTime : now - s.startTime
 
-    // 30 seconds deadline threshold check (removed to allow endless typing for Flow Mode if needed, but let's keep it if typingMode is 'time'. For now, let's keep it to 60s or just leave it. We'll leave it at 30s for the timer since it's hardcoded. Actually, let's bump it to 60s to allow flow mode testing easily).
-    if (s.state === "typing" && elapsed >= 60000) {
+    // 30 seconds deadline threshold check
+    if (s.state === "typing" && elapsed >= 30000) {
       s.state = "finished"
-      s.endTime = s.startTime + 60000
-      elapsed = 60000
+      s.endTime = s.startTime + 30000
+      elapsed = 30000
       if (timerRef.current) {
         clearInterval(timerRef.current)
         timerRef.current = null
@@ -290,6 +291,7 @@ export function useTypingSession(
             const completedWord = s.targetText[s.wordIndex].toUpperCase();
             if (!result.result.wordMistake) {
                s.words[s.wordIndex].isPerfect = true;
+               useAppStore.getState().addExplosion();
             }
             const effectMap: Record<string, string> = {
               "THOCK": "thock-ripple",
@@ -401,5 +403,6 @@ export function useTypingSession(
     restart,
     activeKeys: activeKeysView,
     emitKeyEvent,
+    getHistory: () => historyRef.current.toArray(),
   }
 }

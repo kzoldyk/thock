@@ -308,6 +308,62 @@ function Slider({
   )
 }
 
+function AsciiExplosion({ id, x, y, onComplete }: { id: string, x: number, y: number, onComplete: (id: string) => void }) {
+  const chars = ["*", "#", "@", "+", "%", "!", "&", "$", "?", "~", "█", "▄", "▀"];
+  
+  useEffect(() => {
+    const timer = setTimeout(() => onComplete(id), 1200);
+    return () => clearTimeout(timer);
+  }, [id, onComplete]);
+
+  return (
+    <div 
+      className="fixed pointer-events-none z-[5]"
+      style={{ left: `${x}vw`, top: `${y}vh` }}
+    >
+      {[...Array(16)].map((_, i) => {
+        const angle = (i / 16) * Math.PI * 2;
+        const dist = 80 + Math.random() * 120;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        const char = chars[Math.floor(Math.random() * chars.length)];
+        
+        return (
+          <motion.div
+            key={i}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+            animate={{ 
+              x: dx, 
+              y: dy, 
+              opacity: 0, 
+              scale: 1 + Math.random() * 1.5,
+              rotate: (Math.random() - 0.5) * 180 
+            }}
+            transition={{ duration: 0.7 + Math.random() * 0.5, ease: "easeOut" }}
+            className="absolute left-0 top-0 text-[var(--accent)] font-mono text-xl font-bold opacity-60"
+            style={{ textShadow: "0 0 15px var(--accent)" }}
+          >
+            {char}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AsciiExplosionsOverlay() {
+  const explosions = useAppStore(s => s.explosions);
+  const removeExplosion = useAppStore(s => s.removeExplosion);
+
+  return (
+    <>
+      {explosions.map(e => (
+        <AsciiExplosion key={e.id} id={e.id} x={e.x} y={e.y} onComplete={removeExplosion} />
+      ))}
+    </>
+  );
+}
+
 export default function Home() {
   const keyboardRef = useRef<KeyboardHandle>(null)
   const reducedMotion = useAppStore((s) => s.reducedMotion)
@@ -339,6 +395,7 @@ export default function Home() {
     currentCharIndex,
     restart,
     activeKeys,
+    getHistory,
   } = useTypingSession(keyboardRef, layoutId)
 
   const volume = useAppStore((s) => s.volume)
@@ -391,6 +448,17 @@ export default function Home() {
 
   const isDark = theme.mode === "dark"
 
+  const getWpmTint = (wpm: number, isDark: boolean) => {
+    if (wpm < 20) return "rgba(0,0,0,0)";
+    if (wpm < 30) return isDark ? "rgba(56, 189, 248, 0.05)" : "rgba(56, 189, 248, 0.1)"; // Focus Blue
+    if (wpm < 40) return isDark ? "rgba(74, 222, 128, 0.05)" : "rgba(74, 222, 128, 0.1)"; // Flow Green
+    if (wpm < 50) return isDark ? "rgba(250, 204, 21, 0.06)" : "rgba(250, 204, 21, 0.15)"; // Energy Yellow
+    if (wpm < 60) return isDark ? "rgba(249, 115, 22, 0.07)" : "rgba(249, 115, 22, 0.15)"; // Intense Orange
+    return isDark ? "rgba(239, 68, 68, 0.08)" : "rgba(239, 68, 68, 0.15)"; // Adrenaline Red
+  };
+
+  const wpmTint = getWpmTint(stats.liveWpm, isDark);
+
   return (
     <main
       className={cn(
@@ -427,8 +495,17 @@ export default function Home() {
         } as React.CSSProperties
       }
     >
+      {/* Dynamic Psychological WPM Tint */}
+      <div 
+        className="absolute inset-0 pointer-events-none transition-colors duration-1000 z-[0]"
+        style={{ backgroundColor: wpmTint }}
+      />
+
       {/* Drift particles behind content */}
       <BackgroundParticles />
+      
+      {/* ASCII Explosion Overlay */}
+      <AsciiExplosionsOverlay />
 
       {/* VisionOS ambient highlights */}
       <div className="absolute top-[-15%] left-[15%] right-[15%] h-[40%] bg-gradient-to-b from-[var(--accent)]/3 to-transparent rounded-full blur-[130px] pointer-events-none z-[0] opacity-80" />
@@ -513,62 +590,88 @@ export default function Home() {
 
       {/* Main content grid */}
       <div className="flex-1 flex flex-col justify-between py-4 relative z-10">
-        {/* Stats bar */}
-        {sessionState !== "finished" && (
-          <div className={cn("flex justify-center flow-transition", flowMode && "flow-fade-out")}>
-            <StatsBar stats={stats} sessionState={sessionState} />
-          </div>
-        )}
-
-        {/* Typing Paragraph Focus Box */}
-        <div className="flex-1 flex flex-col justify-center min-h-[220px]">
-          {sessionState === "finished" ? (
-            <div className="flex justify-center px-8">
-              <ResultCard stats={stats} onRestart={restart} />
-            </div>
-          ) : (
-            <WordsDisplay
-              words={words}
-              currentWordIndex={currentWordIndex}
-              currentCharIndex={currentCharIndex}
-            />
-          )}
-        </div>
-
-        {/* Keyboard Display Section */}
-        {showKeyboard && sessionState !== "finished" && (
-          <div className="relative px-8 pb-3 max-w-[1000px] w-full mx-auto flex flex-col items-center">
-            {keyboardType === "2d" ? (
-              <Keyboard2D
-                layoutId={layoutId}
-                themeId={keyboardThemeId}
-                activeKeys={activeKeys}
-              />
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: "easeOut" }}
-                className="w-full flex justify-center"
-              >
-                <KeyboardScene
-                  ref={keyboardRef}
-                  layoutId={layoutId}
-                  themeId={keyboardThemeId}
-                />
-              </motion.div>
+        {activeTab === "Practice" ? (
+          <>
+            {/* Stats bar */}
+            {sessionState !== "finished" && (
+              <div className={cn("flex justify-center flow-transition", flowMode && "flow-fade-out")}>
+                <StatsBar stats={stats} sessionState={sessionState} />
+              </div>
             )}
+
+            {/* Typing Paragraph Focus Box */}
+            <div className="flex-1 flex flex-col justify-center min-h-[220px]">
+              {sessionState === "finished" ? (
+                <div className="flex justify-center px-8">
+                  <ResultCard stats={stats} onRestart={restart} history={getHistory()} />
+                </div>
+              ) : (
+                <WordsDisplay
+                  words={words}
+                  currentWordIndex={currentWordIndex}
+                  currentCharIndex={currentCharIndex}
+                />
+              )}
+            </div>
+
+            {/* Keyboard Display Section */}
+            {showKeyboard && sessionState !== "finished" && (
+              <div className="relative px-8 pb-3 max-w-[1000px] w-full mx-auto flex flex-col items-center">
+                {keyboardType === "2d" ? (
+                  <Keyboard2D
+                    layoutId={layoutId}
+                    themeId={keyboardThemeId}
+                    activeKeys={activeKeys}
+                  />
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    className="w-full flex justify-center"
+                  >
+                    <KeyboardScene
+                      ref={keyboardRef}
+                      layoutId={layoutId}
+                      themeId={keyboardThemeId}
+                    />
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <motion.div 
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="text-center flex flex-col items-center"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />
+                <span className="relative z-10 opacity-80">
+                  {activeTab === "Challenges" ? "🏆" : activeTab === "Leaderboard" ? "👑" : activeTab === "Statistics" ? "📈" : "✨"}
+                </span>
+              </div>
+              <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">{activeTab}</h2>
+              <p className="text-[13px] text-[var(--muted)] max-w-[28ch] mx-auto mt-2 leading-relaxed">
+                This experience is still being crafted. Check back in a future update.
+              </p>
+            </motion.div>
           </div>
         )}
       </div>
 
       {/* Footer hint details */}
-      <footer className={cn(
-        "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-70 flow-transition",
-        flowMode && "flow-fade-out"
-      )}>
-        Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
-      </footer>
+      {activeTab === "Practice" && (
+        <footer className={cn(
+          "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-70 flow-transition",
+          flowMode && "flow-fade-out"
+        )}>
+          Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
+        </footer>
+      )}
 
       <SettingsPanel isDarkMode={isDark} fontClass={fontClass} />
     </main>
