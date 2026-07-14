@@ -34,8 +34,15 @@ const sourceCodePro = Source_Code_Pro({
 });
 
 export const metadata: Metadata = {
-  title: "thock — premium typing experience",
-  description: "Typing should feel incredible. A premium mechanical keyboard typing experience for the web.",
+  title: {
+    default: "Thock — Premium Mechanical Keyboard Typing Test & Experience",
+    template: "%s | Thock",
+  },
+  description: "Experience the ultimate mechanical keyboard typing test online. Track your WPM speed, accuracy, and enjoy realistic clacks, thocks, and linear switch sounds. Practice typing for free.",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
