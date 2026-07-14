@@ -27,6 +27,8 @@ interface TypingSessionState {
   keystrokes: Keystroke[]
   wordMistakes: number
   consecutiveCorrectChars: number
+  lastTypoTime: number | null
+  perfectWordCount: number
 }
 
 export interface TypingSessionAPI {
@@ -85,6 +87,8 @@ function freshSession(mode: "time" | "words" | "quotes", seed?: number): TypingS
     keystrokes: [],
     wordMistakes: 0,
     consecutiveCorrectChars: 0,
+    lastTypoTime: null,
+    perfectWordCount: 0,
   }
 }
 
@@ -100,6 +104,8 @@ function emptySession(): TypingSessionState {
     keystrokes: [],
     wordMistakes: 0,
     consecutiveCorrectChars: 0,
+    lastTypoTime: null,
+    perfectWordCount: 0,
   }
 }
 
@@ -314,6 +320,16 @@ export function useTypingSession(
             if (!result.result.wordMistake) {
                s.words[s.wordIndex].isPerfect = true;
                useAppStore.getState().addExplosion();
+               s.perfectWordCount++;
+               if (s.perfectWordCount === 10) {
+                  useAppStore.getState().setDelightMessage("10 Perfect Words! 💫")
+                  setTimeout(() => useAppStore.getState().setDelightMessage(null), 2000)
+               } else if (s.perfectWordCount === 25) {
+                  useAppStore.getState().setDelightMessage("25 Words Streak! 🔥")
+                  setTimeout(() => useAppStore.getState().setDelightMessage(null), 2000)
+               }
+            } else {
+               s.perfectWordCount = 0;
             }
             const effectMap: Record<string, string> = {
               "THOCK": "thock-ripple",
@@ -330,18 +346,50 @@ export function useTypingSession(
             if (effectMap[completedWord]) {
               const effect = effectMap[completedWord];
               useAppStore.getState().setActiveEffect(effect);
+              
+              if (completedWord === "THOCK") {
+                audioEngine.playThockSpecial()
+              } else if (completedWord === "RAIN") {
+                useAppStore.getState().setAppThemeId("rain")
+              } else if (completedWord === "APPLE") {
+                useAppStore.getState().setAppThemeId("pure-white")
+                useAppStore.getState().setFontFamily("sf-pro")
+              } else if (completedWord === "NOTHING") {
+                useAppStore.getState().setAppThemeId("pure-white")
+                useAppStore.getState().setKeyboardThemeId("nothing")
+              }
+              
               setTimeout(() => useAppStore.getState().setActiveEffect(null), 3000);
             }
           }
 
           if (result.result.action === "char") {
              if (result.result.isCorrect) {
+                // Correct character typed
+                if (s.lastTypoTime !== null) {
+                  const elapsedSinceTypo = performance.now() - s.lastTypoTime
+                  if (elapsedSinceTypo < 350) {
+                     useAppStore.getState().setDelightMessage("Fast Recovery! ⚡")
+                     setTimeout(() => useAppStore.getState().setDelightMessage(null), 1500)
+                  }
+                  s.lastTypoTime = null
+                }
+                
                 s.consecutiveCorrectChars++;
-                if (s.consecutiveCorrectChars === 100) {
+                if (s.consecutiveCorrectChars === 50) {
+                   useAppStore.getState().setDelightMessage("50 Streak! ⚡")
+                   setTimeout(() => useAppStore.getState().setDelightMessage(null), 1500)
+                } else if (s.consecutiveCorrectChars === 100) {
+                   useAppStore.getState().setDelightMessage("100 Combo! 🏆")
                    useAppStore.getState().setActiveEffect("golden-shimmer");
-                   setTimeout(() => useAppStore.getState().setActiveEffect(null), 2000);
+                   setTimeout(() => {
+                      useAppStore.getState().setActiveEffect(null)
+                      useAppStore.getState().setDelightMessage(null)
+                   }, 2000);
                 }
              } else {
+                // Typo occurred! Record timestamp
+                s.lastTypoTime = performance.now()
                 s.consecutiveCorrectChars = 0;
              }
           }

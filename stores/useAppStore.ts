@@ -43,6 +43,10 @@ interface AppStore {
   explosions: { id: string; x: number; y: number }[]
   addExplosion: () => void
   removeExplosion: (id: string) => void
+  dampenerId: string
+  setDampenerId: (id: string) => void
+  delightMessage: string | null
+  setDelightMessage: (msg: string | null) => void
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -94,4 +98,8 @@ export const useAppStore = create<AppStore>((set) => ({
   removeExplosion: (id) => set((state) => ({
     explosions: state.explosions.filter(e => e.id !== id)
   })),
+  dampenerId: "none",
+  setDampenerId: (id) => set({ dampenerId: id }),
+  delightMessage: null,
+  setDelightMessage: (msg) => set({ delightMessage: msg }),
 }))

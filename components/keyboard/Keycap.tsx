@@ -39,6 +39,7 @@ export function Keycap({
 }: KeycapProps) {
   const groupRef = useRef<THREE.Group>(null)
   const matRef = useRef<THREE.MeshStandardMaterial>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const textRef = useRef<any>(null)
   const y = useRef(0)
   const target = useRef(0)
@@ -46,7 +47,6 @@ export function Keycap({
 
   const color = useMemo(() => new THREE.Color(keycapColor), [keycapColor])
   const active = useMemo(() => new THREE.Color(activeColor), [activeColor])
-  const pressed = useMemo(() => new THREE.Color(pressedColor), [pressedColor])
 
   useFrame(() => {
     const isDown = pressedRef.current[def.code] === 1

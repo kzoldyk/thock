@@ -45,11 +45,38 @@ export function ResultCard({ stats, onRestart, history }: Props) {
   
   const pathData = createPath(wpmData);
 
+  const cardVariants = {
+    hidden: { opacity: 0, scale: 0.96, y: 28, filter: "blur(8px)" },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      filter: "blur(0px)",
+      transition: {
+        type: "spring",
+        stiffness: 120,
+        damping: 18,
+        staggerChildren: 0.1,
+        delayChildren: 0.15,
+      }
+    }
+  } as const
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 16, filter: "blur(4px)" },
+    visible: {
+      opacity: 1,
+      y: 0,
+      filter: "blur(0px)",
+      transition: { type: "spring", stiffness: 180, damping: 20 }
+    }
+  } as const
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
       className="w-full max-w-[800px] mx-auto px-6"
     >
       <div className={cn(
@@ -65,7 +92,7 @@ export function ResultCard({ stats, onRestart, history }: Props) {
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.4 }}
             className="absolute top-6 left-1/2 -translate-x-1/2 px-3 py-1 bg-[var(--foreground)] text-[var(--background)] text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg z-20"
           >
             New Personal Best
@@ -86,7 +113,7 @@ export function ResultCard({ stats, onRestart, history }: Props) {
                  strokeLinejoin="round"
                  initial={{ pathLength: 0, opacity: 0 }}
                  animate={{ pathLength: 1, opacity: 1 }}
-                 transition={{ duration: 1.5, ease: "easeInOut", delay: 0.2 }}
+                 transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
                />
                <motion.path
                  d={`${pathData} L 100 100 L 0 100 Z`}
@@ -95,7 +122,7 @@ export function ResultCard({ stats, onRestart, history }: Props) {
                  vectorEffect="non-scaling-stroke"
                  initial={{ opacity: 0 }}
                  animate={{ opacity: 0.2 }}
-                 transition={{ duration: 1.5, ease: "easeInOut", delay: 0.2 }}
+                 transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
                />
              </svg>
            )}
@@ -103,7 +130,7 @@ export function ResultCard({ stats, onRestart, history }: Props) {
 
         <div className="flex flex-col md:flex-row items-center gap-10 sm:gap-12 mt-6">
           {/* Main Score */}
-          <div className="flex-shrink-0 text-center relative z-10 w-full md:w-auto">
+          <motion.div variants={itemVariants} className="flex-shrink-0 text-center relative z-10 w-full md:w-auto">
             <h2 className={cn(
               "text-[5rem] leading-none font-bold tracking-tighter mb-1 transition-colors drop-shadow-sm",
               isPerfect ? "text-amber-500 drop-shadow-[0_0_15px_rgba(251,191,36,0.3)]" : "text-[var(--foreground)]"
@@ -112,53 +139,53 @@ export function ResultCard({ stats, onRestart, history }: Props) {
             </h2>
             <div className="text-sm font-semibold text-[var(--muted)] tracking-widest uppercase">wpm</div>
             
-            <motion.div 
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="mt-4 text-xs font-bold px-3 py-1.5 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-[var(--foreground)] inline-block shadow-sm"
-            >
+            <div className="mt-4 text-xs font-bold px-3 py-1.5 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-[var(--foreground)] inline-block shadow-sm">
               {getRankTitle(stats.wpm)}
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
 
           {/* Detailed Stats Grid */}
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-x-6 sm:gap-x-8 gap-y-8 sm:gap-y-10 relative z-10 w-full">
-            <div>
+            <motion.div variants={itemVariants}>
               <div className="text-2xl sm:text-3xl font-bold tabular-nums"><AnimatedNumber value={stats.raw} /></div>
               <div className="text-[9px] sm:text-[10px] text-[var(--muted)] font-semibold uppercase tracking-widest mt-1">Raw Speed</div>
-            </div>
-            <div>
+            </motion.div>
+            
+            <motion.div variants={itemVariants}>
               <div className={cn("text-2xl sm:text-3xl font-bold tabular-nums", isPerfect && "text-amber-500 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]")}>
                 <AnimatedNumber value={stats.accuracy} />%
               </div>
               <div className="text-[9px] sm:text-[10px] text-[var(--muted)] font-semibold uppercase tracking-widest mt-1">Accuracy</div>
-            </div>
-            <div>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
               <div className="text-2xl sm:text-3xl font-bold tabular-nums"><AnimatedNumber value={stats.consistency} />%</div>
               <div className="text-[9px] sm:text-[10px] text-[var(--muted)] font-semibold uppercase tracking-widest mt-1">Consistency</div>
-            </div>
-            <div>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
               <div className="text-2xl sm:text-3xl font-bold tabular-nums"><AnimatedNumber value={stats.mistakes} /></div>
               <div className="text-[9px] sm:text-[10px] text-[var(--muted)] font-semibold uppercase tracking-widest mt-1">Mistakes</div>
-            </div>
-            <div>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
               <div className="text-2xl sm:text-3xl font-bold tabular-nums"><AnimatedNumber value={stats.streak} /></div>
               <div className="text-[9px] sm:text-[10px] text-[var(--muted)] font-semibold uppercase tracking-widest mt-1">Best Streak</div>
-            </div>
-            <div>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
               <div className="text-2xl sm:text-3xl font-bold tabular-nums">{(stats.elapsedMs / 1000).toFixed(1)}s</div>
               <div className="text-[9px] sm:text-[10px] text-[var(--muted)] font-semibold uppercase tracking-widest mt-1">Time Elapsed</div>
-            </div>
+            </motion.div>
           </div>
         </div>
 
         {/* Action area */}
-        <div className="mt-12 pt-8 border-t border-[var(--chrome-border)] flex justify-center relative z-10">
+        <motion.div variants={itemVariants} className="mt-12 pt-8 border-t border-[var(--chrome-border)] flex justify-center relative z-10">
           <button
             onClick={onRestart}
             className={cn(
-               "group flex items-center gap-2 px-8 py-3.5 rounded-2xl text-sm font-bold tracking-wide transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg",
+               "group flex items-center gap-2 px-8 py-3.5 rounded-2xl text-sm font-bold tracking-wide transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg cursor-pointer",
               isPerfect 
                 ? "bg-gradient-to-r from-amber-400 to-amber-600 text-amber-950 hover:shadow-amber-500/25" 
                 : "bg-[var(--foreground)] text-[var(--background)] hover:shadow-xl"
@@ -167,7 +194,7 @@ export function ResultCard({ stats, onRestart, history }: Props) {
             Start Next Session
             <span className="opacity-60 group-hover:translate-x-1 transition-transform">→</span>
           </button>
-        </div>
+        </motion.div>
       </div>
     </motion.div>
   )

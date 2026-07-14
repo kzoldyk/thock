@@ -9,6 +9,7 @@ class AudioEngine {
   private masterGain: GainNode | null = null
   private convolver: ConvolverNode | null = null
   private reverbGain: GainNode | null = null
+  private dampenerFilter: BiquadFilterNode | null = null
   private initialized = false
   private loaded = false
 
@@ -36,7 +37,8 @@ class AudioEngine {
   async init() {
     if (this.initialized) return
     try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext
+      const AudioCtx = (window as Window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext || 
+                       (window as Window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (!AudioCtx) {
         console.error("[audio] Web Audio API is not supported in this browser")
         return
@@ -48,6 +50,10 @@ class AudioEngine {
       this.masterGain = masterGain
       masterGain.gain.value = 0.8
       masterGain.connect(ctx.destination)
+
+      const dampenerFilter = ctx.createBiquadFilter()
+      this.dampenerFilter = dampenerFilter
+      dampenerFilter.connect(masterGain)
 
       // Parallel Reverb setup
       try {
@@ -61,9 +67,18 @@ class AudioEngine {
 
         convolver.connect(reverbGain)
         reverbGain.connect(masterGain)
+        
+        // Route filtered signal to reverb path
+        dampenerFilter.connect(convolver)
       } catch (err) {
         console.error("[audio] reverb setup failed", err)
       }
+
+      // Sync dampener presets
+      useAppStore.subscribe((state) => {
+        this.updateDampenerFilter(state.dampenerId)
+      })
+      this.updateDampenerFilter(useAppStore.getState().dampenerId)
 
       this.initialized = true
       console.warn("[audio] engine initialized, ctx state:", ctx.state)
@@ -79,6 +94,62 @@ class AudioEngine {
       }
     } catch (e) {
       console.error("[audio] init failed", e)
+    }
+  }
+
+  updateDampenerFilter(id: string) {
+    if (!this.ctx || !this.dampenerFilter) return
+    const now = this.ctx.currentTime
+
+    if (id === "tape") {
+      // Tape mod: creamy mids, peaked at 800Hz with high focus, slight high roll off
+      this.dampenerFilter.type = "peaking"
+      this.dampenerFilter.frequency.setValueAtTime(800, now)
+      this.dampenerFilter.Q.setValueAtTime(1.8, now)
+      this.dampenerFilter.gain.setValueAtTime(5, now)
+    } else if (id === "foam") {
+      // Foam mod: deep low thock, cuts off high-pitched plastic frequencies (clacks)
+      this.dampenerFilter.type = "lowpass"
+      this.dampenerFilter.frequency.setValueAtTime(950, now)
+      this.dampenerFilter.Q.setValueAtTime(0.8, now)
+    } else if (id === "gasket") {
+      // Gasket mount: cushioned, soft roll off
+      this.dampenerFilter.type = "lowpass"
+      this.dampenerFilter.frequency.setValueAtTime(1800, now)
+      this.dampenerFilter.Q.setValueAtTime(0.65, now)
+    } else {
+      // "none" -> bypass (lowpass at Nyquist limit)
+      this.dampenerFilter.type = "lowpass"
+      this.dampenerFilter.frequency.setValueAtTime(20000, now)
+    }
+  }
+
+  async playThockSpecial() {
+    if (!this.ctx || !this.masterGain) return
+    await this.resumeContext()
+    try {
+      const osc = this.ctx.createOscillator()
+      const filter = this.ctx.createBiquadFilter()
+      const gain = this.ctx.createGain()
+      
+      osc.type = "sine"
+      osc.frequency.setValueAtTime(95, this.ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.16)
+      
+      filter.type = "lowpass"
+      filter.frequency.setValueAtTime(130, this.ctx.currentTime)
+      
+      gain.gain.setValueAtTime(0.65, this.ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2)
+      
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(this.masterGain)
+      
+      osc.start()
+      osc.stop(this.ctx.currentTime + 0.2)
+    } catch (e) {
+      console.error("[audio] special thock failed", e)
     }
   }
 
@@ -127,10 +198,10 @@ class AudioEngine {
         console.warn("[audio] manifest not found, status:", res.status)
         return
       }
-      const manifest = await res.json()
+      const manifest = (await res.json()) as { id: string; path: string }[]
       console.warn("[audio] manifest loaded:", manifest)
       
-      const entry = manifest.find((e: any) => e.id === packId)
+      const entry = manifest.find((e) => e.id === packId)
       if (!entry) {
         console.warn("[audio] pack not found in manifest:", packId)
         return
@@ -246,9 +317,13 @@ class AudioEngine {
         source.connect(gain)
       }
 
-      gain.connect(this.masterGain)
-      if (this.convolver) {
-        gain.connect(this.convolver)
+      if (this.dampenerFilter) {
+        gain.connect(this.dampenerFilter)
+      } else {
+        gain.connect(this.masterGain)
+        if (this.convolver) {
+          gain.connect(this.convolver)
+        }
       }
       
       source.start()
@@ -320,9 +395,13 @@ class AudioEngine {
         source.connect(gain)
       }
 
-      gain.connect(this.masterGain)
-      if (this.convolver) {
-        gain.connect(this.convolver)
+      if (this.dampenerFilter) {
+        gain.connect(this.dampenerFilter)
+      } else {
+        gain.connect(this.masterGain)
+        if (this.convolver) {
+          gain.connect(this.convolver)
+        }
       }
 
       source.start()

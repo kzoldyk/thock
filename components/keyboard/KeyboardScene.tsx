@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useMemo, forwardRef, useImperativeHandle, useEffect } from "react"
-import { Canvas, useFrame, useThree } from "@react-three/fiber"
+import { Canvas, useFrame } from "@react-three/fiber"
 import { ContactShadows, useGLTF } from "@react-three/drei"
 import * as THREE from "three"
 import { Keycap } from "./Keycap"
@@ -29,7 +29,6 @@ const UNIT = 0.06
 const GAP = 0.003
 const KEY_H = 0.018
 const ROW_GAP = 0.07
-const TRAVEL = 0.018
 const ROW_ANGLES = [0.12, 0.06, 0, -0.06, -0.12, -0.08]
 
 function getKeyType(code: string): "esc" | "modifier" | "number" | "alpha" {
@@ -50,7 +49,6 @@ function getKeyType(code: string): "esc" | "modifier" | "number" | "alpha" {
 }
 
 function KeyboardSceneInner({ layoutId, themeId, pressedRef }: KeyboardSceneInnerProps) {
-  const { camera } = useThree()
   const shakeRef = useRef({ x: 0, y: 0, t: 0 })
 
   useEffect(() => {
@@ -85,7 +83,8 @@ function KeyboardSceneInner({ layoutId, themeId, pressedRef }: KeyboardSceneInne
 
   const activeEffect = useAppStore((s) => s.activeEffect)
 
-  useFrame(({ clock }, delta) => {
+  useFrame((state, delta) => {
+    const { camera, clock } = state
     // Subtle continuous floating
     const t = clock.getElapsedTime()
     const floatY = Math.sin(t * 0.8) * 0.005

@@ -8,7 +8,6 @@ import { StatsBar } from "@/components/type/StatsBar"
 import { WordsDisplay } from "@/components/type/Words"
 import { ResultCard } from "@/components/type/ResultCard"
 import { useTypingSession } from "@/hooks/useTypingSession"
-import { useReducedMotion } from "@/hooks/useReducedMotion"
 import { useAppStore } from "@/stores/useAppStore"
 import { audioEngine } from "@/engines/audioEngine"
 import { appThemes } from "@/lib/themes"
@@ -65,6 +64,7 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
     showKeyboard, setShowKeyboard,
     soundEnabled, setSoundEnabled,
     keyboardType, setKeyboardType,
+    dampenerId, setDampenerId,
   } = useAppStore()
 
   return (
@@ -182,6 +182,19 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
                     className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
                   >
                     <option value="default" className="bg-zinc-950 text-zinc-50">Cherry Blue Switches</option>
+                  </select>
+                </Section>
+
+                <Section title="Acoustic Dampener">
+                  <select
+                    value={dampenerId}
+                    onChange={(e) => setDampenerId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
+                  >
+                    <option value="none" className="bg-zinc-950 text-zinc-50">None (Pure Clack)</option>
+                    <option value="tape" className="bg-zinc-950 text-zinc-50">Tape Mod (Creamy Mids)</option>
+                    <option value="foam" className="bg-zinc-950 text-zinc-50">Foam Mod (Deep Thock)</option>
+                    <option value="gasket" className="bg-zinc-950 text-zinc-50">Gasket Mount (Soft Cushioned)</option>
                   </select>
                 </Section>
 
@@ -309,11 +322,30 @@ function Slider({
 }
 
 function AsciiExplosion({ id, x, y, onComplete }: { id: string, x: number, y: number, onComplete: (id: string) => void }) {
-  const chars = ["*", "#", "@", "+", "%", "!", "&", "$", "?", "~", "█", "▄", "▀"];
-  
+  const [particles, setParticles] = useState<{ dx: number; dy: number; char: string; scale: number; rotate: number; duration: number }[]>([])
+
   useEffect(() => {
-    const timer = setTimeout(() => onComplete(id), 1200);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => {
+      const chars = ["*", "#", "@", "+", "%", "!", "&", "$", "?", "~", "█", "▄", "▀"];
+      const list = Array.from({ length: 16 }, (_, i) => {
+        const angle = (i / 16) * Math.PI * 2;
+        const dist = 80 + Math.random() * 120;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        const char = chars[Math.floor(Math.random() * chars.length)];
+        const scale = 1 + Math.random() * 1.5;
+        const rotate = (Math.random() - 0.5) * 180;
+        const duration = 0.7 + Math.random() * 0.5;
+        return { dx, dy, char, scale, rotate, duration };
+      });
+      setParticles(list);
+    }, 0);
+
+    const completeTimer = setTimeout(() => onComplete(id), 1200);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(completeTimer);
+    };
   }, [id, onComplete]);
 
   return (
@@ -321,32 +353,24 @@ function AsciiExplosion({ id, x, y, onComplete }: { id: string, x: number, y: nu
       className="fixed pointer-events-none z-[5]"
       style={{ left: `${x}vw`, top: `${y}vh` }}
     >
-      {[...Array(16)].map((_, i) => {
-        const angle = (i / 16) * Math.PI * 2;
-        const dist = 80 + Math.random() * 120;
-        const dx = Math.cos(angle) * dist;
-        const dy = Math.sin(angle) * dist;
-        const char = chars[Math.floor(Math.random() * chars.length)];
-        
-        return (
-          <motion.div
-            key={i}
-            initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
-            animate={{ 
-              x: dx, 
-              y: dy, 
-              opacity: 0, 
-              scale: 1 + Math.random() * 1.5,
-              rotate: (Math.random() - 0.5) * 180 
-            }}
-            transition={{ duration: 0.7 + Math.random() * 0.5, ease: "easeOut" }}
-            className="absolute left-0 top-0 text-[var(--accent)] font-mono text-xl font-bold opacity-60"
-            style={{ textShadow: "0 0 15px var(--accent)" }}
-          >
-            {char}
-          </motion.div>
-        );
-      })}
+      {particles.map((p, i) => (
+        <motion.div
+          key={i}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+          animate={{ 
+            x: p.dx, 
+            y: p.dy, 
+            opacity: 0, 
+            scale: p.scale,
+            rotate: p.rotate 
+          }}
+          transition={{ duration: p.duration, ease: "easeOut" }}
+          className="absolute left-0 top-0 text-[var(--accent)] font-mono text-xl font-bold opacity-60"
+          style={{ textShadow: "0 0 15px var(--accent)" }}
+        >
+          {p.char}
+        </motion.div>
+      ))}
     </div>
   );
 }
@@ -366,8 +390,6 @@ function AsciiExplosionsOverlay() {
 
 export default function Home() {
   const keyboardRef = useRef<KeyboardHandle>(null)
-  const reducedMotion = useAppStore((s) => s.reducedMotion)
-  const [appReady, setAppReady] = useState(false)
   const [activeTab, setActiveTab] = useState("Practice")
   const [windowFocused, setWindowFocused] = useState(true)
 
@@ -383,6 +405,7 @@ export default function Home() {
   const keyboardType = useAppStore((s) => s.keyboardType)
   const flowMode = useAppStore((s) => s.flowMode)
   const activeEffect = useAppStore((s) => s.activeEffect)
+  const delightMessage = useAppStore((s) => s.delightMessage)
 
   const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
   const fontFamily = useAppStore((s) => s.fontFamily)
@@ -419,9 +442,7 @@ export default function Home() {
       if (disposed) return
       audioEngine.setVolume(useAppStore.getState().volume)
       audioEngine.setReverb(useAppStore.getState().reverb)
-      audioEngine.loadPack("default").then(() => {
-        if (!disposed) setAppReady(true)
-      })
+      audioEngine.loadPack("default")
     })
     return () => {
       disposed = true
@@ -532,7 +553,7 @@ export default function Home() {
       {/* Header Navigation */}
       <header className={cn(
         "flex items-center justify-between px-8 py-5 relative z-10 select-none flow-transition",
-        flowMode && "flow-fade-out"
+        (flowMode || sessionState === "typing") && "flow-fade-out"
       )}>
         {/* Left: Minimal Logo */}
         <div className="flex items-center gap-1.5 cursor-pointer">
@@ -622,7 +643,7 @@ export default function Home() {
           <>
             {/* Stats bar */}
             {sessionState !== "finished" && (
-              <div className={cn("flex justify-center flow-transition", flowMode && "flow-fade-out")}>
+              <div className={cn("flex justify-center flow-transition", (flowMode || sessionState === "typing") && "flow-fade-out")}>
                 <StatsBar stats={stats} sessionState={sessionState} />
               </div>
             )}
@@ -638,6 +659,7 @@ export default function Home() {
                   words={words}
                   currentWordIndex={currentWordIndex}
                   currentCharIndex={currentCharIndex}
+                  sessionState={sessionState}
                 />
               )}
             </div>
@@ -695,11 +717,30 @@ export default function Home() {
       {activeTab === "Practice" && (
         <footer className={cn(
           "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-70 flow-transition",
-          flowMode && "flow-fade-out"
+          (flowMode || sessionState === "typing") && "flow-fade-out"
         )}>
           Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
         </footer>
       )}
+
+      {/* Floating Delight Banner */}
+      <AnimatePresence>
+        {delightMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 28 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 px-4 py-2 rounded-2xl glass-panel text-xs font-bold text-[var(--accent)] tracking-wide shadow-lg z-30 flex items-center gap-1.5"
+            style={{
+              borderColor: "rgba(var(--accent-rgb), 0.15)",
+              background: "var(--chrome-surface-strong)"
+            }}
+          >
+            <span className="animate-bounce">✨</span> {delightMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <SettingsPanel isDarkMode={isDark} fontClass={fontClass} />
 
