@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useState } from "react"
+import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import { KeyboardScene, type KeyboardHandle } from "@/components/keyboard/KeyboardScene"
 import { Keyboard2D } from "@/components/keyboard/Keyboard2D"
@@ -556,7 +557,14 @@ export default function Home() {
         (flowMode || sessionState === "typing") && "flow-fade-out"
       )}>
         {/* Left: Minimal Logo */}
-        <div className="flex items-center gap-1.5 cursor-pointer">
+        <div className="flex items-center gap-2.5 cursor-pointer select-none">
+          <Image
+            src="/logo.jpg"
+            alt="thock logo"
+            width={32}
+            height={32}
+            className="w-8 h-8 rounded-xl border border-[var(--chrome-border)] shadow-sm bg-[var(--chrome-surface-soft)] object-cover"
+          />
           <span className="font-bold tracking-tight text-lg text-[var(--foreground)]">thock<span className="text-[var(--accent)]">.</span></span>
         </div>
 
