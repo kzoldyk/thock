@@ -43,7 +43,7 @@ export interface TypingSessionAPI {
   getHistory: () => StatsSample[]
 }
 
-const DEV_QUOTES = [
+export const DEV_QUOTES = [
   "Talk is cheap. Show me the code.",
   "Programs must be written for people to read, and only incidentally for machines to execute.",
   "Simplicity is the soul of efficiency.",

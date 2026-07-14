@@ -8,7 +8,7 @@ import { Keyboard2D } from "@/components/keyboard/Keyboard2D"
 import { StatsBar } from "@/components/type/StatsBar"
 import { WordsDisplay } from "@/components/type/Words"
 import { ResultCard } from "@/components/type/ResultCard"
-import { useTypingSession } from "@/hooks/useTypingSession"
+import { useTypingSession, DEV_QUOTES } from "@/hooks/useTypingSession"
 import { useAppStore } from "@/stores/useAppStore"
 import { audioEngine } from "@/engines/audioEngine"
 import { appThemes } from "@/lib/themes"
@@ -394,6 +394,12 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("Practice")
   const [windowFocused, setWindowFocused] = useState(true)
   const [visitorCount, setVisitorCount] = useState<number | null>(null)
+  const [mobileQuoteIdx, setMobileQuoteIdx] = useState(0)
+  
+  const mobileQuote = DEV_QUOTES[mobileQuoteIdx] || DEV_QUOTES[0]
+  const cycleMobileQuote = () => {
+    setMobileQuoteIdx((prev) => (prev + 1) % DEV_QUOTES.length)
+  }
 
   const appThemeId = useAppStore((s) => s.appThemeId)
   const layoutId = useAppStore((s) => s.layoutId)
@@ -565,78 +571,221 @@ export default function Home() {
       <div className="absolute top-[-15%] left-[15%] right-[15%] h-[40%] bg-gradient-to-b from-[var(--accent)]/3 to-transparent rounded-full blur-[130px] pointer-events-none z-[0] opacity-80" />
       <div className="absolute bottom-[-15%] left-[25%] right-[25%] h-[35%] bg-gradient-to-t from-[var(--accent)]/3 to-transparent rounded-full blur-[110px] pointer-events-none z-[0] opacity-70" />
 
-      {/* Header Navigation */}
-      <header className={cn(
-        "flex items-center justify-between px-8 py-5 relative z-10 select-none flow-transition",
-        (flowMode || sessionState === "typing") && "flow-fade-out"
-      )}>
-        {/* Left: Minimal Logo */}
-        <div className="flex items-center gap-2.5 cursor-pointer select-none">
-          <Image
-            src="/logo-v2.png"
-            alt="thock logo"
-            width={40}
-            height={40}
-            className="w-10 h-10 object-contain"
-          />
-          <span className="font-bold tracking-tight text-lg text-[var(--foreground)]">thock<span className="text-[var(--accent)]">.</span></span>
-        </div>
+      {/* Desktop Layout (Hidden on mobile) */}
+      <div className="hidden md:flex flex-col flex-1 justify-between relative z-10">
+        {/* Header Navigation */}
+        <header className={cn(
+          "flex items-center justify-between px-8 py-5 relative z-10 select-none flow-transition",
+          (flowMode || sessionState === "typing") && "flow-fade-out"
+        )}>
+          {/* Left: Minimal Logo */}
+          <div className="flex items-center gap-2.5 cursor-pointer select-none">
+            <Image
+              src="/logo-v2.png"
+              alt="thock logo"
+              width={40}
+              height={40}
+              className="w-10 h-10 object-contain"
+            />
+            <span className="font-bold tracking-tight text-lg text-[var(--foreground)]">thock<span className="text-[var(--accent)]">.</span></span>
+          </div>
 
-        {/* Center: Premium Nav Items */}
-        <nav className="hidden sm:flex items-center p-0.5 bg-black/5 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 backdrop-blur-sm">
-          {["Practice", "Challenges", "Leaderboard", "Statistics"].map((tab) => {
-            const isPractice = tab === "Practice"
-            const isActive = activeTab === tab
-            return (
-              <button
-                key={tab}
-                disabled={!isPractice}
-                onClick={() => isPractice && setActiveTab(tab)}
-                className={cn(
-                  "relative px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 flex items-center gap-1.5",
-                  !isPractice ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-                )}
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="activeNavTab"
-                    className="absolute inset-0 bg-[var(--foreground)] text-[var(--background)] rounded-full -z-10 shadow-sm"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          {/* Center: Premium Nav Items */}
+          <nav className="hidden sm:flex items-center p-0.5 bg-black/5 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 backdrop-blur-sm">
+            {["Practice", "Challenges", "Leaderboard", "Statistics"].map((tab) => {
+              const isPractice = tab === "Practice"
+              const isActive = activeTab === tab
+              return (
+                <button
+                  key={tab}
+                  disabled={!isPractice}
+                  onClick={() => isPractice && setActiveTab(tab)}
+                  className={cn(
+                    "relative px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 flex items-center gap-1.5",
+                    !isPractice ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                  )}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="activeNavTab"
+                      className="absolute inset-0 bg-[var(--foreground)] text-[var(--background)] rounded-full -z-10 shadow-sm"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className={cn(
+                    isActive ? "text-[var(--background)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                  )}>
+                    {tab}
+                  </span>
+                  {!isPractice && (
+                    <span className="text-[7.5px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 text-[var(--muted)] uppercase tracking-widest scale-[0.85] font-bold">
+                      Soon
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
+
+          {/* Right: profile + settings + toggles */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              title={soundEnabled ? "Mute Key Sounds" : "Unmute Key Sounds"}
+            >
+              {soundEnabled ? "🔊" : "🔇"}
+            </button>
+
+            <button
+              onClick={() => setShowKeyboard(!showKeyboard)}
+              className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              title={showKeyboard ? "Hide Keyboard" : "Show Keyboard"}
+            >
+              ⌨️
+            </button>
+
+            <button
+              onClick={toggleDarkMode}
+              className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              title="Toggle Theme"
+            >
+              {isDark ? "🔆" : "🌙"}
+            </button>
+            
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift ml-1"
+            >
+              Settings
+            </button>
+
+            {/* HP profile avatar mockup */}
+            <div className="w-8 h-8 rounded-full border border-[var(--chrome-border)] flex items-center justify-center text-[10px] font-bold bg-gradient-to-tr from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 text-[var(--foreground)] shadow-sm select-none cursor-default">
+              HP
+            </div>
+          </div>
+        </header>
+
+        {/* Main content grid */}
+        <div className="flex-1 flex flex-col justify-between py-4 relative z-10">
+          {activeTab === "Practice" ? (
+            <>
+              {/* Stats bar */}
+              {sessionState !== "finished" && (
+                <div className={cn("flex justify-center flow-transition", (flowMode || sessionState === "typing") && "flow-fade-out")}>
+                  <StatsBar stats={stats} sessionState={sessionState} />
+                </div>
+              )}
+
+              {/* Typing Paragraph Focus Box */}
+              <div className="flex-1 flex flex-col justify-center min-h-[220px]">
+                {sessionState === "finished" ? (
+                  <div className="flex justify-center px-8">
+                    <ResultCard stats={stats} onRestart={restart} history={getHistory()} />
+                  </div>
+                ) : (
+                  <WordsDisplay
+                    words={words}
+                    currentWordIndex={currentWordIndex}
+                    currentCharIndex={currentCharIndex}
+                    sessionState={sessionState}
                   />
                 )}
-                <span className={cn(
-                  isActive ? "text-[var(--background)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"
-                )}>
-                  {tab}
-                </span>
-                {!isPractice && (
-                  <span className="text-[7.5px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 text-[var(--muted)] uppercase tracking-widest scale-[0.85] font-bold">
-                    Soon
+              </div>
+
+              {/* Keyboard Display Section */}
+              {showKeyboard && sessionState !== "finished" && (
+                <div className="relative px-8 pb-3 max-w-[1000px] w-full mx-auto flex flex-col items-center">
+                  {keyboardType === "2d" ? (
+                    <Keyboard2D
+                      layoutId={layoutId}
+                      themeId={keyboardThemeId}
+                      activeKeys={activeKeys}
+                    />
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.7, ease: "easeOut" }}
+                      className="w-full flex justify-center"
+                    >
+                      <KeyboardScene
+                        ref={keyboardRef}
+                        layoutId={layoutId}
+                        themeId={keyboardThemeId}
+                      />
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="text-center flex flex-col items-center"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-6 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />
+                  <span className="relative z-10 opacity-80">
+                    {activeTab === "Challenges" ? "🏆" : activeTab === "Leaderboard" ? "👑" : activeTab === "Statistics" ? "📈" : "✨"}
                   </span>
-                )}
-              </button>
-            )
-          })}
-        </nav>
+                </div>
+                <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">{activeTab}</h2>
+                <p className="text-[13px] text-[var(--muted)] max-w-[28ch] mx-auto mt-2 leading-relaxed">
+                  This experience is still being crafted. Check back in a future update.
+                </p>
+              </motion.div>
+            </div>
+          )}
+        </div>
 
-        {/* Right: profile + settings + toggles */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
-            title={soundEnabled ? "Mute Key Sounds" : "Unmute Key Sounds"}
-          >
-            {soundEnabled ? "🔊" : "🔇"}
-          </button>
+        {/* Footer hint details */}
+        {activeTab === "Practice" && (
+          <footer className={cn(
+            "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-75 flow-transition",
+            (flowMode || sessionState === "typing") && "flow-fade-out"
+          )}>
+            <div>
+              Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
+            </div>
+            {visitorCount !== null && (
+              <div className="mt-4 flex items-center justify-center gap-2 select-none">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium tracking-normal normal-case border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] opacity-90 transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] group cursor-default">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]"></span>
+                  </span>
+                  <span>
+                    Visited by <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> typists
+                  </span>
+                </span>
+              </div>
+            )}
+          </footer>
+        )}
+      </div>
 
-          <button
-            onClick={() => setShowKeyboard(!showKeyboard)}
-            className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
-            title={showKeyboard ? "Hide Keyboard" : "Show Keyboard"}
-          >
-            ⌨️
-          </button>
-
+      {/* Mobile Layout (Visible only on mobile) */}
+      <div className="md:hidden flex flex-col flex-1 justify-between p-6 sm:p-8 relative z-10 text-center min-h-[calc(100dvh-20px)]">
+        {/* Top: Logo & Theme Toggle */}
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-2.5 cursor-default select-none">
+            <Image
+              src="/logo-v2.png"
+              alt="thock logo"
+              width={36}
+              height={36}
+              className="w-9 h-9 object-contain"
+            />
+            <span className="font-bold tracking-tight text-base text-[var(--foreground)]">
+              thock<span className="text-[var(--accent)]">.</span>
+            </span>
+          </div>
+          
           <button
             onClick={toggleDarkMode}
             className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
@@ -644,121 +793,72 @@ export default function Home() {
           >
             {isDark ? "🔆" : "🌙"}
           </button>
-          
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift ml-1"
-          >
-            Settings
-          </button>
-
-          {/* HP profile avatar mockup */}
-          <div className="w-8 h-8 rounded-full border border-[var(--chrome-border)] flex items-center justify-center text-[10px] font-bold bg-gradient-to-tr from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 text-[var(--foreground)] shadow-sm select-none cursor-default">
-            HP
-          </div>
         </div>
-      </header>
 
-      {/* Main content grid */}
-      <div className="flex-1 flex flex-col justify-between py-4 relative z-10">
-        {activeTab === "Practice" ? (
-          <>
-            {/* Stats bar */}
-            {sessionState !== "finished" && (
-              <div className={cn("flex justify-center flow-transition", (flowMode || sessionState === "typing") && "flow-fade-out")}>
-                <StatsBar stats={stats} sessionState={sessionState} />
-              </div>
-            )}
+        {/* Middle content: Card for Laptop Nerds */}
+        <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full my-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="w-14 h-14 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-6 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent animate-pulse" />
+            <span className="relative z-10">💻</span>
+          </motion.div>
+          
+          <motion.h2 
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+            className="text-xl font-bold tracking-tight text-[var(--foreground)]"
+          >
+            Designed for Laptop Nerds
+          </motion.h2>
+          
+          <motion.p 
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="text-[12px] text-[var(--muted)] mt-2 mb-8 max-w-[28ch] leading-relaxed"
+          >
+            thock. is a physical keyboard playground with real-time audio synthesis. Open on a laptop to type and hear clacks.
+          </motion.p>
 
-            {/* Typing Paragraph Focus Box */}
-            <div className="flex-1 flex flex-col justify-center min-h-[220px]">
-              {sessionState === "finished" ? (
-                <div className="flex justify-center px-8">
-                  <ResultCard stats={stats} onRestart={restart} history={getHistory()} />
-                </div>
-              ) : (
-                <WordsDisplay
-                  words={words}
-                  currentWordIndex={currentWordIndex}
-                  currentCharIndex={currentCharIndex}
-                  sessionState={sessionState}
-                />
-              )}
+          {/* Interactive Quote Card */}
+          <motion.div
+            initial={{ y: 15, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            onClick={cycleMobileQuote}
+            className="glass-panel w-full p-6 rounded-[24px] border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] relative overflow-hidden cursor-pointer select-none group transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] hover:border-[var(--accent)]/20 shadow-md"
+          >
+            <div className="absolute top-3 right-4 text-[9px] text-[var(--muted)] opacity-60 flex items-center gap-1 font-bold uppercase tracking-wider">
+              <span>nerd quote</span>
+              <span className="animate-pulse">✨</span>
             </div>
+            
+            <p className="text-sm font-semibold italic text-[var(--foreground)] leading-relaxed mt-4 text-left pr-4">
+              "{mobileQuote}"
+            </p>
+            
+            <div className="mt-6 flex justify-between items-center text-[10px] text-[var(--muted)] font-semibold uppercase tracking-wider">
+              <span className="group-hover:text-[var(--foreground)] transition-colors duration-200">Tap to refresh</span>
+              <span className="text-[var(--accent)] group-hover:translate-x-0.5 transition-transform duration-200">Next →</span>
+            </div>
+          </motion.div>
+        </div>
 
-            {/* Keyboard Display Section */}
-            {showKeyboard && sessionState !== "finished" && (
-              <div className="relative px-8 pb-3 max-w-[1000px] w-full mx-auto flex flex-col items-center">
-                {keyboardType === "2d" ? (
-                  <Keyboard2D
-                    layoutId={layoutId}
-                    themeId={keyboardThemeId}
-                    activeKeys={activeKeys}
-                  />
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, ease: "easeOut" }}
-                    className="w-full flex justify-center"
-                  >
-                    <KeyboardScene
-                      ref={keyboardRef}
-                      layoutId={layoutId}
-                      themeId={keyboardThemeId}
-                    />
-                  </motion.div>
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <motion.div 
-              initial={{ opacity: 0, y: 10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="text-center flex flex-col items-center"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-6 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />
-                <span className="relative z-10 opacity-80">
-                  {activeTab === "Challenges" ? "🏆" : activeTab === "Leaderboard" ? "👑" : activeTab === "Statistics" ? "📈" : "✨"}
-                </span>
-              </div>
-              <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">{activeTab}</h2>
-              <p className="text-[13px] text-[var(--muted)] max-w-[28ch] mx-auto mt-2 leading-relaxed">
-                This experience is still being crafted. Check back in a future update.
-              </p>
-            </motion.div>
-          </div>
-        )}
+        {/* Bottom footer hint */}
+        <motion.footer 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.75 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="text-[9px] font-bold text-[var(--muted)] tracking-wider uppercase opacity-75 pb-2"
+        >
+          designed for physical keyboards
+        </motion.footer>
       </div>
-
-      {/* Footer hint details */}
-      {activeTab === "Practice" && (
-        <footer className={cn(
-          "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-75 flow-transition",
-          (flowMode || sessionState === "typing") && "flow-fade-out"
-        )}>
-          <div>
-            Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
-          </div>
-          {visitorCount !== null && (
-            <div className="mt-4 flex items-center justify-center gap-2 select-none">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium tracking-normal normal-case border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] opacity-90 transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] group cursor-default">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]"></span>
-                </span>
-                <span>
-                  Visited by <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> typists
-                </span>
-              </span>
-            </div>
-          )}
-        </footer>
-      )}
 
       {/* Floating Delight Banner */}
       <AnimatePresence>
