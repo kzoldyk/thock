@@ -232,8 +232,22 @@ export function useTypingSession(
       if (disabled || isSettingsOpen) {
         return
       }
+
+      // Ignore key events when typing inside inputs or textareas
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
       if (e.repeat) return
       const { key, code } = e
+      if (!key) return
       const s = sessionRef.current
 
       if (code === "Tab") {
@@ -408,6 +422,18 @@ export function useTypingSession(
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown)
     const handleKeyUp = (e: KeyboardEvent) => {
+      // Ignore key events when typing inside inputs or textareas
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
       keyboardRef.current?.releaseKey(e.code)
       if (activeKeysRef.current.has(e.code)) {
         activeKeysRef.current.delete(e.code)

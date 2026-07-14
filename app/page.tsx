@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 import { BackgroundParticles } from "@/components/ui/BackgroundParticles"
 import { getFontClass } from "@/lib/fonts"
 import type { FontFamily } from "@/types"
+import { FeedbackModal } from "@/components/ui/FeedbackModal"
 
 function SegmentedControl<T extends string>({
   options,
@@ -395,6 +396,7 @@ export default function Home() {
   const [windowFocused, setWindowFocused] = useState(true)
   const [visitorCount, setVisitorCount] = useState<number | null>(null)
   const [mobileQuoteIdx, setMobileQuoteIdx] = useState(0)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   
   const mobileQuote = DEV_QUOTES[mobileQuoteIdx] || DEV_QUOTES[0]
   const cycleMobileQuote = () => {
@@ -654,6 +656,13 @@ export default function Home() {
             </button>
             
             <button
+              onClick={() => setFeedbackOpen(true)}
+              className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift"
+            >
+              Feedback
+            </button>
+
+            <button
               onClick={() => setSettingsOpen(true)}
               className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift ml-1"
             >
@@ -786,13 +795,21 @@ export default function Home() {
             </span>
           </div>
           
-          <button
-            onClick={toggleDarkMode}
-            className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
-            title="Toggle Theme"
-          >
-            {isDark ? "🔆" : "🌙"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setFeedbackOpen(true)}
+              className="px-3 py-1.5 text-[11px] font-semibold rounded-full bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+            >
+              Feedback
+            </button>
+            <button
+              onClick={toggleDarkMode}
+              className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              title="Toggle Theme"
+            >
+              {isDark ? "🔆" : "🌙"}
+            </button>
+          </div>
         </div>
 
         {/* Middle content: Card for Laptop Nerds */}
@@ -839,7 +856,7 @@ export default function Home() {
             </div>
             
             <p className="text-sm font-semibold italic text-[var(--foreground)] leading-relaxed mt-4 text-left pr-4">
-              "{mobileQuote}"
+              &ldquo;{mobileQuote}&rdquo;
             </p>
             
             <div className="mt-6 flex justify-between items-center text-[10px] text-[var(--muted)] font-semibold uppercase tracking-wider">
@@ -880,6 +897,7 @@ export default function Home() {
       </AnimatePresence>
 
       <SettingsPanel isDarkMode={isDark} fontClass={fontClass} />
+      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} isDarkMode={isDark} fontClass={fontClass} />
 
       {/* Click to Focus Overlay */}
       {sessionState === "typing" && !windowFocused && (
