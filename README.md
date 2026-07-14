@@ -1,4 +1,4 @@
-# <img src="./public/logo.jpg" width="36" align="center" style="border-radius: 8px; margin-right: 8px;" /> thock. ⌨️
+# <img src="./public/logo.png" width="36" align="center" style="border-radius: 8px; margin-right: 8px;" /> thock. ⌨️
 
 A premium, luxury typing visualizer and mechanical acoustic nodes customizer built with Next.js, React Three Fiber, and Web Audio API. Inspired by Apple, Linear, VisionOS, and Keeby.
 

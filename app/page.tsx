@@ -559,7 +559,7 @@ export default function Home() {
         {/* Left: Minimal Logo */}
         <div className="flex items-center gap-2.5 cursor-pointer select-none">
           <Image
-            src="/logo.png"
+            src="/logo-v2.png"
             alt="thock logo"
             width={40}
             height={40}
