@@ -92,11 +92,9 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
 
   // 8. Get user's personal rank
   // Sub-query to get user's ranking
-  if (sqlNormalized.includes("COUNT(*)") && sqlNormalized.includes("wpm > ?")) {
-    // SELECT COUNT(*) as rank_above FROM scores WHERE time_limit = ? AND mode = ? AND wpm > ?
+  if (sqlNormalized.includes("COUNT(*)") && (sqlNormalized.includes("wpm > ?") || sqlNormalized.includes("max_wpm > ?"))) {
     const [time_limit, mode, wpm] = params;
-    // Find unique users' best scores for this configuration to count ranking, or just count individual better scores
-    // Usually ranking count scores that are strictly higher
+    // Find unique users' best scores for this configuration to count ranking
     const uniqueBests = new Map<string, number>();
     g.__thock_scores
       .filter((s: any) => s.time_limit === Number(time_limit) && s.mode === mode)
@@ -109,6 +107,24 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
       
     const rankAbove = Array.from(uniqueBests.values()).filter(v => v > wpm).length;
     return [{ rank_above: rankAbove }];
+  }
+
+  // 8b. Select user's personal best (alternate structure): SELECT wpm, accuracy, consistency FROM scores WHERE user_id = ? AND time_limit = ? AND mode = ? ORDER BY wpm DESC, accuracy DESC LIMIT 1
+  if (sqlNormalized.includes("FROM scores") && sqlNormalized.includes("user_id = ?") && sqlNormalized.includes("ORDER BY wpm DESC") && sqlNormalized.includes("LIMIT 1")) {
+    const [user_id, time_limit, mode] = params;
+    const userScores = g.__thock_scores.filter(
+      (s: any) => s.user_id === user_id && s.time_limit === Number(time_limit) && s.mode === mode
+    );
+    if (userScores.length === 0) {
+      return [];
+    }
+    userScores.sort((a: any, b: any) => {
+      if (b.wpm !== a.wpm) {
+        return b.wpm - a.wpm;
+      }
+      return b.accuracy - a.accuracy;
+    });
+    return [userScores[0]];
   }
 
   // 9. Select preferences: SELECT settings_json FROM preferences WHERE user_id = ?
