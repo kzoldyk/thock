@@ -18,6 +18,8 @@ import { BackgroundParticles } from "@/components/ui/BackgroundParticles"
 import { getFontClass } from "@/lib/fonts"
 import type { FontFamily } from "@/types"
 import { FeedbackModal } from "@/components/ui/FeedbackModal"
+import { AuthModal } from "@/components/ui/AuthModal"
+import { LeaderboardView } from "@/components/ui/LeaderboardView"
 
 function SegmentedControl<T extends string>({
   options,
@@ -432,6 +434,158 @@ export default function Home() {
   const [visitorCount, setVisitorCount] = useState<number | null>(null)
   const [mobileQuoteIdx, setMobileQuoteIdx] = useState(0)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null)
+  const [authOpen, setAuthOpen] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.user) {
+          setCurrentUser(data.user)
+        }
+      })
+      .catch((err) => console.error("Error loading user session:", err))
+  }, [])
+
+  // Sync preferences from/to cloud on login/registration
+  useEffect(() => {
+    if (!currentUser) return
+
+    let active = true
+    const syncPreferences = async () => {
+      try {
+        const res = await fetch("/api/preferences")
+        if (!res.ok) return
+        const data = await res.json()
+
+        if (active && data.preferences) {
+          // Hydrate local store with cloud settings
+          useAppStore.getState().loadPreferences(data.preferences)
+        } else if (active) {
+          // Upload current local preferences to cloud
+          const state = useAppStore.getState()
+          const currentPrefs = {
+            layoutId: state.layoutId,
+            keyboardThemeId: state.keyboardThemeId,
+            appThemeId: state.appThemeId,
+            switchPackId: state.switchPackId,
+            volume: state.volume,
+            keyVolume: state.keyVolume,
+            reducedMotion: state.reducedMotion,
+            stereoWidth: state.stereoWidth,
+            reverb: state.reverb,
+            pitch: state.pitch,
+            fontFamily: state.fontFamily,
+            typingMode: state.typingMode,
+            timeLimit: state.timeLimit,
+            complexWords: state.complexWords,
+            showKeyboard: state.showKeyboard,
+            soundEnabled: state.soundEnabled,
+            keyboardType: state.keyboardType,
+            flowMode: state.flowMode,
+            dampenerId: state.dampenerId,
+          }
+
+          await fetch("/api/preferences", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ preferences: currentPrefs }),
+          })
+        }
+      } catch (err) {
+        console.error("Preferences sync failed:", err)
+      }
+    }
+
+    syncPreferences()
+    return () => {
+      active = false
+    }
+  }, [currentUser])
+
+  // Select settings from Zustand to track updates for Cloud sync
+  const prefLayoutId = useAppStore((s) => s.layoutId)
+  const prefKeyboardThemeId = useAppStore((s) => s.keyboardThemeId)
+  const prefAppThemeId = useAppStore((s) => s.appThemeId)
+  const prefSwitchPackId = useAppStore((s) => s.switchPackId)
+  const prefVolume = useAppStore((s) => s.volume)
+  const prefKeyVolume = useAppStore((s) => s.keyVolume)
+  const prefReducedMotion = useAppStore((s) => s.reducedMotion)
+  const prefStereoWidth = useAppStore((s) => s.stereoWidth)
+  const prefReverb = useAppStore((s) => s.reverb)
+  const prefPitch = useAppStore((s) => s.pitch)
+  const prefFontFamily = useAppStore((s) => s.fontFamily)
+  const prefTypingMode = useAppStore((s) => s.typingMode)
+  const prefTimeLimit = useAppStore((s) => s.timeLimit)
+  const prefComplexWords = useAppStore((s) => s.complexWords)
+  const prefShowKeyboard = useAppStore((s) => s.showKeyboard)
+  const prefSoundEnabled = useAppStore((s) => s.soundEnabled)
+  const prefKeyboardType = useAppStore((s) => s.keyboardType)
+  const prefFlowMode = useAppStore((s) => s.flowMode)
+  const prefDampenerId = useAppStore((s) => s.dampenerId)
+
+  // Debounced cloud preferences sync on settings modification
+  useEffect(() => {
+    if (!currentUser) return
+
+    const timer = setTimeout(async () => {
+      try {
+        const currentPrefs = {
+          layoutId: prefLayoutId,
+          keyboardThemeId: prefKeyboardThemeId,
+          appThemeId: prefAppThemeId,
+          switchPackId: prefSwitchPackId,
+          volume: prefVolume,
+          keyVolume: prefKeyVolume,
+          reducedMotion: prefReducedMotion,
+          stereoWidth: prefStereoWidth,
+          reverb: prefReverb,
+          pitch: prefPitch,
+          fontFamily: prefFontFamily,
+          typingMode: prefTypingMode,
+          timeLimit: prefTimeLimit,
+          complexWords: prefComplexWords,
+          showKeyboard: prefShowKeyboard,
+          soundEnabled: prefSoundEnabled,
+          keyboardType: prefKeyboardType,
+          flowMode: prefFlowMode,
+          dampenerId: prefDampenerId,
+        }
+
+        await fetch("/api/preferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ preferences: currentPrefs }),
+        })
+      } catch (err) {
+        console.error("Failed to sync updated preferences to cloud:", err)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [
+    currentUser,
+    prefLayoutId,
+    prefKeyboardThemeId,
+    prefAppThemeId,
+    prefSwitchPackId,
+    prefVolume,
+    prefKeyVolume,
+    prefReducedMotion,
+    prefStereoWidth,
+    prefReverb,
+    prefPitch,
+    prefFontFamily,
+    prefTypingMode,
+    prefTimeLimit,
+    prefComplexWords,
+    prefShowKeyboard,
+    prefSoundEnabled,
+    prefKeyboardType,
+    prefFlowMode,
+    prefDampenerId,
+  ])
   
   const mobileQuote = DEV_QUOTES[mobileQuoteIdx] || DEV_QUOTES[0]
   const cycleMobileQuote = () => {
@@ -631,15 +785,17 @@ export default function Home() {
           <nav className="hidden sm:flex items-center p-0.5 bg-black/5 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 backdrop-blur-sm">
             {["Practice", "Challenges", "Leaderboard", "Statistics"].map((tab) => {
               const isPractice = tab === "Practice"
+              const isLeaderboard = tab === "Leaderboard"
+              const isEnabled = isPractice || isLeaderboard
               const isActive = activeTab === tab
               return (
                 <button
                   key={tab}
-                  disabled={!isPractice}
-                  onClick={() => isPractice && setActiveTab(tab)}
+                  disabled={!isEnabled}
+                  onClick={() => isEnabled && setActiveTab(tab)}
                   className={cn(
                     "relative px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 flex items-center gap-1.5",
-                    !isPractice ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                    !isEnabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
                   )}
                 >
                   {isActive && (
@@ -654,7 +810,7 @@ export default function Home() {
                   )}>
                     {tab}
                   </span>
-                  {!isPractice && (
+                  {!isEnabled && (
                     <span className="text-[7.5px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 text-[var(--muted)] uppercase tracking-widest scale-[0.85] font-bold">
                       Soon
                     </span>
@@ -707,10 +863,32 @@ export default function Home() {
               Settings
             </button>
 
-            {/* HP profile avatar mockup */}
-            <div className="w-8 h-8 rounded-full border border-[var(--chrome-border)] flex items-center justify-center text-[10px] font-bold bg-gradient-to-tr from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 text-[var(--foreground)] shadow-sm select-none cursor-default">
-              HP
-            </div>
+            {/* Profile Avatar / Authentication Trigger */}
+            {currentUser ? (
+              <div className="flex items-center gap-2 group relative">
+                <div className="w-8 h-8 rounded-full border border-[var(--chrome-border)] flex items-center justify-center text-[10px] font-bold bg-gradient-to-tr from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 text-[var(--foreground)] shadow-sm select-none cursor-default">
+                  {currentUser.username.substring(0, 2).toUpperCase()}
+                </div>
+                <button
+                  onClick={async () => {
+                    const res = await fetch("/api/auth/logout", { method: "POST" })
+                    if (res.ok) {
+                      setCurrentUser(null)
+                    }
+                  }}
+                  className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-xl border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100 ml-1 button-lift"
+                >
+                  Log Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAuthOpen(true)}
+                className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift ml-1"
+              >
+                Sign In
+              </button>
+            )}
           </div>
         </header>
 
@@ -729,7 +907,7 @@ export default function Home() {
               <div className="flex-1 flex flex-col justify-center min-h-[220px]">
                 {sessionState === "finished" ? (
                   <div className="flex justify-center px-8">
-                    <ResultCard stats={stats} onRestart={restart} history={getHistory()} />
+                    <ResultCard stats={stats} onRestart={restart} history={getHistory()} currentUser={currentUser} onOpenAuth={() => setAuthOpen(true)} />
                   </div>
                 ) : (
                   <WordsDisplay
@@ -767,6 +945,14 @@ export default function Home() {
                 </div>
               )}
             </>
+          ) : activeTab === "Leaderboard" ? (
+            <div className="flex-1 flex items-center justify-center py-6">
+              <LeaderboardView
+                currentUser={currentUser}
+                onOpenAuth={() => setAuthOpen(true)}
+                fontClass={fontClass}
+              />
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <motion.div 
@@ -778,7 +964,7 @@ export default function Home() {
                 <div className="w-16 h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-6 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />
                   <span className="relative z-10 opacity-80">
-                    {activeTab === "Challenges" ? "🏆" : activeTab === "Leaderboard" ? "👑" : activeTab === "Statistics" ? "📈" : "✨"}
+                    {activeTab === "Challenges" ? "🏆" : activeTab === "Statistics" ? "📈" : "✨"}
                   </span>
                 </div>
                 <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">{activeTab}</h2>
@@ -937,6 +1123,7 @@ export default function Home() {
 
       <SettingsPanel isDarkMode={isDark} fontClass={fontClass} />
       <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} isDarkMode={isDark} fontClass={fontClass} />
+      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} fontClass={fontClass} onSuccess={(user) => setCurrentUser(user)} />
 
       {/* Click to Focus Overlay */}
       {sessionState === "typing" && !windowFocused && (

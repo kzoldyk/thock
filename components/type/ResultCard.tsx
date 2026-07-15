@@ -1,15 +1,19 @@
 "use client"
 
+import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 import type { TypingStats } from "@/types"
 import type { StatsSample } from "@/engines/metrics/history"
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber"
 import { cn } from "@/lib/utils"
+import { useAppStore } from "@/stores/useAppStore"
 
 interface Props {
   stats: TypingStats
   onRestart: () => void
   history: StatsSample[]
+  currentUser: { id: string; username: string } | null
+  onOpenAuth: () => void
 }
 
 function getRankTitle(wpm: number) {
@@ -23,9 +27,62 @@ function getRankTitle(wpm: number) {
   return "Sentient AI 🤖"
 }
 
-export function ResultCard({ stats, onRestart, history }: Props) {
+export function ResultCard({ stats, onRestart, history, currentUser, onOpenAuth }: Props) {
   const isPerfect = stats.accuracy === 100 && stats.totalTyped > 0;
   const isPb = stats.wpm > 100; // Simulated PB threshold for now
+
+  const [submissionStatus, setSubmissionStatus] = useState<"idle" | "submitting" | "success" | "error">("idle")
+  const typingMode = useAppStore((s) => s.typingMode)
+  const timeLimit = useAppStore((s) => s.timeLimit)
+
+  const hasSubmitted = useRef(false)
+
+  useEffect(() => {
+    if (!currentUser || hasSubmitted.current) {
+      if (!currentUser) {
+        setSubmissionStatus("idle")
+      }
+      return
+    }
+
+    hasSubmitted.current = true
+    let active = true
+    const submitScore = async () => {
+      setSubmissionStatus("submitting")
+      try {
+        const res = await fetch("/api/leaderboard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            wpm: stats.wpm,
+            accuracy: stats.accuracy,
+            consistency: stats.consistency,
+            timeLimit: timeLimit,
+            mode: typingMode,
+          }),
+        })
+
+        if (!res.ok) {
+          throw new Error("Failed to submit score")
+        }
+
+        if (active) {
+          setSubmissionStatus("success")
+        }
+      } catch (err) {
+        console.error("Score submission error:", err)
+        if (active) {
+          setSubmissionStatus("error")
+        }
+      }
+    }
+
+    submitScore()
+
+    return () => {
+      active = false
+    }
+  }, [currentUser, stats.wpm, stats.accuracy, stats.consistency, timeLimit, typingMode])
 
   // Chart computation
   const wpmData = history.map(h => h.liveWpm);
@@ -181,7 +238,41 @@ export function ResultCard({ stats, onRestart, history }: Props) {
         </div>
 
         {/* Action area */}
-        <motion.div variants={itemVariants} className="mt-12 pt-8 border-t border-[var(--chrome-border)] flex justify-center relative z-10">
+        <motion.div variants={itemVariants} className="mt-10 pt-6 border-t border-[var(--chrome-border)] flex flex-col items-center gap-4 relative z-10">
+          {/* Leaderboard Submission Status Indicator */}
+          <div className="text-xs font-semibold select-none">
+            {currentUser ? (
+              submissionStatus === "submitting" ? (
+                <span className="text-[var(--muted)] flex items-center gap-1.5 animate-pulse">
+                  <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Saving score to the leaderboard...
+                </span>
+              ) : submissionStatus === "success" ? (
+                <span className="text-emerald-500 drop-shadow-[0_0_6px_rgba(16,185,129,0.2)]">
+                  ✓ Score recorded on the leaderboard!
+                </span>
+              ) : (
+                <span className="text-red-500">
+                  ⚠️ Failed to save score to the leaderboard.
+                </span>
+              )
+            ) : (
+              <span className="text-[var(--muted)] flex items-center gap-1.5">
+                Want to save this run?{" "}
+                <button
+                  onClick={onOpenAuth}
+                  className="text-[var(--foreground)] underline font-bold cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  Sign in
+                </button>{" "}
+                to secure your spot!
+              </span>
+            )}
+          </div>
+
           <button
             onClick={onRestart}
             className={cn(

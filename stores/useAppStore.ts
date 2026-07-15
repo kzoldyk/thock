@@ -1,6 +1,7 @@
 "use client"
 
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 import type { FontFamily, LayoutId } from "@/types"
 
 interface AppStore {
@@ -51,63 +52,93 @@ interface AppStore {
   setDampenerId: (id: string) => void
   delightMessage: string | null
   setDelightMessage: (msg: string | null) => void
+  loadPreferences: (prefs: Partial<any>) => void
 }
 
-export const useAppStore = create<AppStore>((set) => ({
-  layoutId: "75",
-  setLayoutId: (id) => set({ layoutId: id }),
-  keyboardThemeId: "keeby-retro",
-  setKeyboardThemeId: (id) => set({ keyboardThemeId: id }),
-  appThemeId: "keeby-light",
-  setAppThemeId: (id) => set({ appThemeId: id }),
-  switchPackId: "default",
-  setSwitchPackId: (id) => set({ switchPackId: id }),
-  volume: 0.8,
-  setVolume: (v) => set({ volume: v }),
-  keyVolume: 1.0,
-  setKeyVolume: (v) => set({ keyVolume: v }),
-  reducedMotion: false,
-  setReducedMotion: (v) => set({ reducedMotion: v }),
-  settingsOpen: false,
-  setSettingsOpen: (v) => set({ settingsOpen: v }),
-  stereoWidth: 0.8,
-  setStereoWidth: (v) => set({ stereoWidth: v }),
-  reverb: 0.2,
-  setReverb: (v) => set({ reverb: v }),
-  pitch: 1.0,
-  setPitch: (v) => set({ pitch: v }),
-  fontFamily: "inter",
-  setFontFamily: (font) => set({ fontFamily: font }),
-  typingMode: "time",
-  setTypingMode: (mode) => set({ typingMode: mode }),
-  timeLimit: 30,
-  setTimeLimit: (t) => set({ timeLimit: t }),
-  complexWords: false,
-  setComplexWords: (v) => set({ complexWords: v }),
-  showKeyboard: true,
-  setShowKeyboard: (v) => set({ showKeyboard: v }),
-  soundEnabled: true,
-  setSoundEnabled: (v) => set({ soundEnabled: v }),
-  keyboardType: "2d",
-  setKeyboardType: (v) => set({ keyboardType: v }),
-  flowMode: false,
-  setFlowMode: (v) => set({ flowMode: v }),
-  activeEffect: null,
-  setActiveEffect: (v) => set({ activeEffect: v }),
-  explosions: [],
-  addExplosion: () => set((state) => {
-    // Generate random x, y between 10% and 90% of screen to keep them visible
-    const x = 10 + Math.random() * 80;
-    const y = 10 + Math.random() * 80;
-    return { 
-      explosions: [...state.explosions, { id: Math.random().toString(36).substring(2, 9), x, y }] 
-    };
-  }),
-  removeExplosion: (id) => set((state) => ({
-    explosions: state.explosions.filter(e => e.id !== id)
-  })),
-  dampenerId: "none",
-  setDampenerId: (id) => set({ dampenerId: id }),
-  delightMessage: null,
-  setDelightMessage: (msg) => set({ delightMessage: msg }),
-}))
+export const useAppStore = create<AppStore>()(
+  persist(
+    (set) => ({
+      layoutId: "75",
+      setLayoutId: (id) => set({ layoutId: id }),
+      keyboardThemeId: "keeby-retro",
+      setKeyboardThemeId: (id) => set({ keyboardThemeId: id }),
+      appThemeId: "keeby-light",
+      setAppThemeId: (id) => set({ appThemeId: id }),
+      switchPackId: "default",
+      setSwitchPackId: (id) => set({ switchPackId: id }),
+      volume: 0.8,
+      setVolume: (v) => set({ volume: v }),
+      keyVolume: 1.0,
+      setKeyVolume: (v) => set({ keyVolume: v }),
+      reducedMotion: false,
+      setReducedMotion: (v) => set({ reducedMotion: v }),
+      settingsOpen: false,
+      setSettingsOpen: (v) => set({ settingsOpen: v }),
+      stereoWidth: 0.8,
+      setStereoWidth: (v) => set({ stereoWidth: v }),
+      reverb: 0.2,
+      setReverb: (v) => set({ reverb: v }),
+      pitch: 1.0,
+      setPitch: (v) => set({ pitch: v }),
+      fontFamily: "inter",
+      setFontFamily: (font) => set({ fontFamily: font }),
+      typingMode: "time",
+      setTypingMode: (mode) => set({ typingMode: mode }),
+      timeLimit: 30,
+      setTimeLimit: (t) => set({ timeLimit: t }),
+      complexWords: false,
+      setComplexWords: (v) => set({ complexWords: v }),
+      showKeyboard: true,
+      setShowKeyboard: (v) => set({ showKeyboard: v }),
+      soundEnabled: true,
+      setSoundEnabled: (v) => set({ soundEnabled: v }),
+      keyboardType: "2d",
+      setKeyboardType: (v) => set({ keyboardType: v }),
+      flowMode: false,
+      setFlowMode: (v) => set({ flowMode: v }),
+      activeEffect: null,
+      setActiveEffect: (v) => set({ activeEffect: v }),
+      explosions: [],
+      addExplosion: () => set((state) => {
+        // Generate random x, y between 10% and 90% of screen to keep them visible
+        const x = 10 + Math.random() * 80;
+        const y = 10 + Math.random() * 80;
+        return { 
+          explosions: [...state.explosions, { id: Math.random().toString(36).substring(2, 9), x, y }] 
+        };
+      }),
+      removeExplosion: (id) => set((state) => ({
+        explosions: state.explosions.filter(e => e.id !== id)
+      })),
+      dampenerId: "none",
+      setDampenerId: (id) => set({ dampenerId: id }),
+      delightMessage: null,
+      setDelightMessage: (msg) => set({ delightMessage: msg }),
+      loadPreferences: (prefs) => set((state) => ({ ...state, ...prefs })),
+    }),
+    {
+      name: "thock-preferences-v1",
+      partialize: (state) => ({
+        layoutId: state.layoutId,
+        keyboardThemeId: state.keyboardThemeId,
+        appThemeId: state.appThemeId,
+        switchPackId: state.switchPackId,
+        volume: state.volume,
+        keyVolume: state.keyVolume,
+        reducedMotion: state.reducedMotion,
+        stereoWidth: state.stereoWidth,
+        reverb: state.reverb,
+        pitch: state.pitch,
+        fontFamily: state.fontFamily,
+        typingMode: state.typingMode,
+        timeLimit: state.timeLimit,
+        complexWords: state.complexWords,
+        showKeyboard: state.showKeyboard,
+        soundEnabled: state.soundEnabled,
+        keyboardType: state.keyboardType,
+        flowMode: state.flowMode,
+        dampenerId: state.dampenerId,
+      }),
+    }
+  )
+)

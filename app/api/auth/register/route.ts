@@ -1,0 +1,67 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { db } from "@/lib/db";
+import { generateSalt, hashPassword, signJwt } from "@/lib/auth-crypto";
+
+export const runtime = "edge";
+
+const JWT_SECRET = process.env.JWT_SECRET || "thock-super-secret-key-1337-clack-thock";
+
+export async function POST(request: Request) {
+  try {
+    const { username, password } = await request.json();
+    
+    if (!username || !password) {
+      return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
+    }
+    
+    const cleanUsername = username.trim().toLowerCase();
+    if (cleanUsername.length < 3 || cleanUsername.length > 20) {
+      return NextResponse.json({ error: "Username must be between 3 and 20 characters" }, { status: 400 });
+    }
+    
+    if (password.length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    }
+    
+    // Check if user exists
+    const existing = await db.query("SELECT * FROM users WHERE username = ?", [cleanUsername]);
+    if (existing && existing.length > 0) {
+      return NextResponse.json({ error: "Username is already taken" }, { status: 400 });
+    }
+    
+    const userId = crypto.randomUUID();
+    const salt = generateSalt();
+    const passwordHash = await hashPassword(password, salt);
+    const createdAt = Date.now();
+    
+    await db.execute(
+      "INSERT INTO users (id, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?)",
+      [userId, cleanUsername, passwordHash, salt, createdAt]
+    );
+    
+    // Create session token (expires in 30 days)
+    const exp = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const token = await signJwt({ id: userId, username: cleanUsername, exp }, JWT_SECRET);
+    
+    // Set HTTP-only cookie
+    const cookieStore = await cookies();
+    cookieStore.set("thock_session", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+    
+    return NextResponse.json({
+      user: {
+        id: userId,
+        username: cleanUsername,
+      }
+    });
+  } catch (err: any) {
+    console.error("[register] error:", err);
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  }
+}
