@@ -1,4 +1,5 @@
 import { executeMockQuery } from "./db-mock";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export interface DatabaseClient {
   query<T = any>(sql: string, params?: any[]): Promise<T[]>;
@@ -163,7 +164,19 @@ let cachedDbClient: DatabaseClient | null = null;
 function getDbClient(): DatabaseClient {
   if (cachedDbClient) return cachedDbClient;
 
-  // Check REST HTTP API config first to ensure consistency with custom tokens
+  // 1. Try to read native Cloudflare D1 binding from @opennextjs/cloudflare context
+  try {
+    const ctx = getCloudflareContext();
+    if (ctx && ctx.env && (ctx.env as any).DB) {
+      console.log("[db] Using Native Cloudflare D1 binding from getCloudflareContext().");
+      cachedDbClient = new D1NativeClient((ctx.env as any).DB);
+      return cachedDbClient;
+    }
+  } catch (e) {
+    // getCloudflareContext failed (e.g. running in local Node dev mode or build time)
+  }
+
+  // 2. Check REST HTTP API config first to ensure consistency with custom tokens
   const env = typeof process !== "undefined" && process.env ? process.env : {} as any;
   const accountId = env.CLOUDFLARE_ACCOUNT_ID;
   const databaseId = env.CLOUDFLARE_DATABASE_ID || env.D1_DATABASE_ID;
@@ -175,7 +188,7 @@ function getDbClient(): DatabaseClient {
     return cachedDbClient;
   }
 
-  // Check native Cloudflare bindings
+  // 3. Check native Cloudflare bindings fallback
   const envDb = typeof process !== "undefined" && process.env ? process.env.DB : undefined;
   const binding =
     envDb ||
@@ -183,12 +196,12 @@ function getDbClient(): DatabaseClient {
     (globalThis as any).__NEXT_CLOUDFLARE_BINDINGS__?.DB;
 
   if (binding) {
-    console.log("[db] Using Native Cloudflare D1 driver binding.");
+    console.log("[db] Using Native Cloudflare D1 driver binding fallback.");
     cachedDbClient = new D1NativeClient(binding);
     return cachedDbClient;
   }
 
-  // Fallback to in-memory mock (do not cache mock to allow checking again if D1 becomes available)
+  // 4. Fallback to in-memory mock
   console.log("[db] Cloudflare D1 bindings not detected. Falling back to edge-compatible in-memory DB.");
   return new MemoryMockClient();
 }
