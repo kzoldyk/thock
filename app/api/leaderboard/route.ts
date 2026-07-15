@@ -4,7 +4,7 @@ import { verifyJwt } from "@/lib/auth-crypto";
 
 export const runtime = "edge";
 
-const JWT_SECRET = process.env.JWT_SECRET || "thock-super-secret-key-1337-clack-thock";
+const JWT_SECRET = (typeof process !== "undefined" && process.env ? process.env.JWT_SECRET : undefined) || "thock-super-secret-key-1337-clack-thock";
 
 // GET: Retrieve the top scores and optionally the current user's rank/best
 export async function GET(request: Request) {

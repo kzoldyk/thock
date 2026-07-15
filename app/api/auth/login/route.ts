@@ -4,7 +4,7 @@ import { hashPassword, signJwt } from "@/lib/auth-crypto";
 
 export const runtime = "edge";
 
-const JWT_SECRET = process.env.JWT_SECRET || "thock-super-secret-key-1337-clack-thock";
+const JWT_SECRET = (typeof process !== "undefined" && process.env ? process.env.JWT_SECRET : undefined) || "thock-super-secret-key-1337-clack-thock";
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       }
     });
 
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = typeof process !== "undefined" && process.env ? process.env.NODE_ENV === "production" : false;
     response.headers.set(
       "Set-Cookie",
       `thock_session=${token}; HttpOnly; Secure=${isProd ? "true" : "false"}; SameSite=Lax; Path=/; Max-Age=2592000`

@@ -4,7 +4,7 @@ import { verifyJwt } from "@/lib/auth-crypto";
 
 export const runtime = "edge";
 
-const JWT_SECRET = process.env.JWT_SECRET || "thock-super-secret-key-1337-clack-thock";
+const JWT_SECRET = (typeof process !== "undefined" && process.env ? process.env.JWT_SECRET : undefined) || "thock-super-secret-key-1337-clack-thock";
 
 // GET: Fetch preferences for the logged-in user
 export async function GET(request: Request) {

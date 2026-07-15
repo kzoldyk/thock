@@ -161,8 +161,9 @@ async function ensureDbInitialized(db: DatabaseClient) {
 // Resolver for finding the database client
 function resolveDatabaseClient(): DatabaseClient {
   // Check native Cloudflare bindings
+  const envDb = typeof process !== "undefined" && process.env ? process.env.DB : undefined;
   const binding =
-    process.env.DB ||
+    envDb ||
     (globalThis as any).DB ||
     (globalThis as any).__NEXT_CLOUDFLARE_BINDINGS__?.DB;
 
@@ -172,9 +173,10 @@ function resolveDatabaseClient(): DatabaseClient {
   }
 
   // Check REST HTTP API config
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const databaseId = process.env.CLOUDFLARE_DATABASE_ID || process.env.D1_DATABASE_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const env = typeof process !== "undefined" && process.env ? process.env : {} as any;
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+  const databaseId = env.CLOUDFLARE_DATABASE_ID || env.D1_DATABASE_ID;
+  const apiToken = env.CLOUDFLARE_API_TOKEN;
 
   if (accountId && databaseId && apiToken) {
     console.log("[db] Using Cloudflare D1 REST HTTP API driver.");
