@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { verifyJwt } from "@/lib/auth-crypto";
 
 export const runtime = "edge";
 
 const JWT_SECRET = process.env.JWT_SECRET || "thock-super-secret-key-1337-clack-thock";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("thock_session")?.value;
+    const cookieHeader = request.headers.get("cookie") || "";
+    let token = null;
+    const cookiesList = cookieHeader.split(";");
+    for (const cookie of cookiesList) {
+      const [key, val] = cookie.trim().split("=");
+      if (key === "thock_session") {
+        token = val;
+        break;
+      }
+    }
     
     if (!token) {
       return NextResponse.json({ user: null });
@@ -17,9 +24,13 @@ export async function GET() {
     
     const payload = await verifyJwt(token, JWT_SECRET);
     if (!payload) {
-      // Clear invalid cookie
-      cookieStore.delete("thock_session");
-      return NextResponse.json({ user: null });
+      // Clear invalid cookie directly in response headers
+      const response = NextResponse.json({ user: null });
+      response.headers.set(
+        "Set-Cookie",
+        "thock_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+      );
+      return response;
     }
     
     return NextResponse.json({

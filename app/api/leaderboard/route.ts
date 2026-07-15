@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { verifyJwt } from "@/lib/auth-crypto";
 
@@ -27,8 +26,17 @@ export async function GET(request: Request) {
     );
 
     // Retrieve current user details if session token is valid
-    const cookieStore = await cookies();
-    const token = cookieStore.get("thock_session")?.value;
+    const cookieHeader = request.headers.get("cookie") || "";
+    let token = null;
+    const cookiesList = cookieHeader.split(";");
+    for (const cookie of cookiesList) {
+      const [key, val] = cookie.trim().split("=");
+      if (key === "thock_session") {
+        token = val;
+        break;
+      }
+    }
+    
     let userBest = null;
 
     if (token) {
@@ -47,7 +55,6 @@ export async function GET(request: Request) {
         if (pbQuery && pbQuery.length > 0) {
           const pb = pbQuery[0];
           // Get rank count (how many users have a better high score than this user)
-          // We count unique users with better scores to find ranking position
           const rankQuery = await db.query(
             `SELECT COUNT(*) as rank_above
              FROM (
@@ -81,8 +88,17 @@ export async function GET(request: Request) {
 // POST: Save a new score run to the database
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("thock_session")?.value;
+    const cookieHeader = request.headers.get("cookie") || "";
+    let token = null;
+    const cookiesList = cookieHeader.split(";");
+    for (const cookie of cookiesList) {
+      const [key, val] = cookie.trim().split("=");
+      if (key === "thock_session") {
+        token = val;
+        break;
+      }
+    }
+
     if (!token) {
       return NextResponse.json({ error: "Unauthorized. Please sign in to submit scores." }, { status: 401 });
     }

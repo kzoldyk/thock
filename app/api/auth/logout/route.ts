@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
 export const runtime = "edge";
 
 export async function POST() {
   try {
-    const cookieStore = await cookies();
-    cookieStore.delete("thock_session");
+    const response = NextResponse.json({ success: true });
     
-    return NextResponse.json({ success: true });
+    // Clear cookie by setting expiration to epoch
+    response.headers.set(
+      "Set-Cookie",
+      "thock_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    );
+    
+    return response;
   } catch (err: any) {
     console.error("[logout] error:", err);
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });

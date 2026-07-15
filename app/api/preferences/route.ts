@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { verifyJwt } from "@/lib/auth-crypto";
 
@@ -8,10 +7,19 @@ export const runtime = "edge";
 const JWT_SECRET = process.env.JWT_SECRET || "thock-super-secret-key-1337-clack-thock";
 
 // GET: Fetch preferences for the logged-in user
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("thock_session")?.value;
+    const cookieHeader = request.headers.get("cookie") || "";
+    let token = null;
+    const cookiesList = cookieHeader.split(";");
+    for (const cookie of cookiesList) {
+      const [key, val] = cookie.trim().split("=");
+      if (key === "thock_session") {
+        token = val;
+        break;
+      }
+    }
+
     if (!token) {
       return NextResponse.json({ preferences: null });
     }
@@ -41,8 +49,17 @@ export async function GET() {
 // POST: Save/Upsert preferences for the logged-in user
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("thock_session")?.value;
+    const cookieHeader = request.headers.get("cookie") || "";
+    let token = null;
+    const cookiesList = cookieHeader.split(";");
+    for (const cookie of cookiesList) {
+      const [key, val] = cookie.trim().split("=");
+      if (key === "thock_session") {
+        token = val;
+        break;
+      }
+    }
+
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

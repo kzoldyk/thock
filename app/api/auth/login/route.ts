@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { hashPassword, signJwt } from "@/lib/auth-crypto";
 
@@ -35,22 +34,21 @@ export async function POST(request: Request) {
     const exp = Date.now() + 30 * 24 * 60 * 60 * 1000;
     const token = await signJwt({ id: user.id, username: user.username, exp }, JWT_SECRET);
     
-    // Set HTTP-only cookie
-    const cookieStore = await cookies();
-    cookieStore.set("thock_session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60, // 30 days
-    });
-    
-    return NextResponse.json({
+    // Create response and set cookie directly via Set-Cookie headers
+    const response = NextResponse.json({
       user: {
         id: user.id,
         username: user.username,
       }
     });
+
+    const isProd = process.env.NODE_ENV === "production";
+    response.headers.set(
+      "Set-Cookie",
+      `thock_session=${token}; HttpOnly; Secure=${isProd ? "true" : "false"}; SameSite=Lax; Path=/; Max-Age=2592000`
+    );
+    
+    return response;
   } catch (err: any) {
     console.error("[login] error:", err);
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
