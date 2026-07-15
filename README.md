@@ -2,6 +2,8 @@
 
 A premium, luxury typing experience for mechanical keyboard enthusiasts who care way too much about how their keystrokes sound. No boring typing tests allowed.
 
+![thock typing visualizer screenshot](./public/screenshot.png)
+
 ---
 
 ## 🌟 What is this?
