@@ -163,6 +163,18 @@ let cachedDbClient: DatabaseClient | null = null;
 function getDbClient(): DatabaseClient {
   if (cachedDbClient) return cachedDbClient;
 
+  // Check REST HTTP API config first to ensure consistency with custom tokens
+  const env = typeof process !== "undefined" && process.env ? process.env : {} as any;
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+  const databaseId = env.CLOUDFLARE_DATABASE_ID || env.D1_DATABASE_ID;
+  const apiToken = env.CLOUDFLARE_API_TOKEN;
+
+  if (accountId && databaseId && apiToken) {
+    console.log("[db] Using Cloudflare D1 REST HTTP API driver.");
+    cachedDbClient = new D1RestClient(accountId, databaseId, apiToken);
+    return cachedDbClient;
+  }
+
   // Check native Cloudflare bindings
   const envDb = typeof process !== "undefined" && process.env ? process.env.DB : undefined;
   const binding =
@@ -173,18 +185,6 @@ function getDbClient(): DatabaseClient {
   if (binding) {
     console.log("[db] Using Native Cloudflare D1 driver binding.");
     cachedDbClient = new D1NativeClient(binding);
-    return cachedDbClient;
-  }
-
-  // Check REST HTTP API config
-  const env = typeof process !== "undefined" && process.env ? process.env : {} as any;
-  const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-  const databaseId = env.CLOUDFLARE_DATABASE_ID || env.D1_DATABASE_ID;
-  const apiToken = env.CLOUDFLARE_API_TOKEN;
-
-  if (accountId && databaseId && apiToken) {
-    console.log("[db] Using Cloudflare D1 REST HTTP API driver.");
-    cachedDbClient = new D1RestClient(accountId, databaseId, apiToken);
     return cachedDbClient;
   }
 
