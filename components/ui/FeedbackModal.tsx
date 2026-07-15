@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { appThemes } from "@/lib/themes"
+import { useAppStore } from "@/stores/useAppStore"
 
 interface FeedbackModalProps {
   isOpen: boolean
@@ -21,6 +23,9 @@ export function FeedbackModal({ isOpen, onClose, isDarkMode, fontClass }: Feedba
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState("")
   const [isMocked, setIsMocked] = useState(false)
+
+  const appThemeId = useAppStore((s) => s.appThemeId)
+  const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,10 +91,10 @@ export function FeedbackModal({ isOpen, onClose, isDarkMode, fontClass }: Feedba
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={cn(
-              "fixed inset-0 backdrop-blur-xl",
-              isDarkMode ? "bg-zinc-950/60" : "bg-zinc-950/20"
-            )}
+            className="fixed inset-0 backdrop-blur-xl"
+            style={{
+              backgroundColor: theme.background + "a0",
+            }}
             onClick={handleClose}
           />
 
@@ -108,7 +113,7 @@ export function FeedbackModal({ isOpen, onClose, isDarkMode, fontClass }: Feedba
             }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/10 dark:border-white/8">
+             <div className="flex items-center justify-between pb-4 border-b border-[var(--chrome-border)]">
               <div className="flex flex-col">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--muted)] opacity-80">Support</p>
                 <h2 className="mt-1 text-base font-semibold tracking-tight text-[var(--foreground)]">Share your feedback</h2>
@@ -117,7 +122,7 @@ export function FeedbackModal({ isOpen, onClose, isDarkMode, fontClass }: Feedba
               <button
                 disabled={status === "loading"}
                 onClick={handleClose}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors border border-white/10 dark:border-white/10 bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 ✕
               </button>
@@ -163,10 +168,10 @@ export function FeedbackModal({ isOpen, onClose, isDarkMode, fontClass }: Feedba
                       onChange={(e) => setType(e.target.value as FeedbackType)}
                       className="w-full px-3 py-2.5 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
                     >
-                      <option value="bug" className="bg-zinc-950 text-zinc-50">🐛 Report a Bug</option>
-                      <option value="feature" className="bg-zinc-950 text-zinc-50">✨ Feature Recommendation</option>
-                      <option value="appreciation" className="bg-zinc-950 text-zinc-50">💖 Appreciation</option>
-                      <option value="other" className="bg-zinc-950 text-zinc-50">💬 Other</option>
+                      <option value="bug" className="bg-[var(--background)] text-[var(--foreground)]">🐛 Report a Bug</option>
+                      <option value="feature" className="bg-[var(--background)] text-[var(--foreground)]">✨ Feature Recommendation</option>
+                      <option value="appreciation" className="bg-[var(--background)] text-[var(--foreground)]">💖 Appreciation</option>
+                      <option value="other" className="bg-[var(--background)] text-[var(--foreground)]">💬 Other</option>
                     </select>
                   </div>
 

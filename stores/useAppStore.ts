@@ -28,8 +28,12 @@ interface AppStore {
   setPitch: (v: number) => void
   fontFamily: FontFamily
   setFontFamily: (font: FontFamily) => void
-  typingMode: "time" | "words" | "quotes"
-  setTypingMode: (mode: "time" | "words" | "quotes") => void
+  typingMode: "time" | "words" | "quotes" | "code"
+  setTypingMode: (mode: "time" | "words" | "quotes" | "code") => void
+  timeLimit: number
+  setTimeLimit: (t: number) => void
+  complexWords: boolean
+  setComplexWords: (v: boolean) => void
   showKeyboard: boolean
   setShowKeyboard: (v: boolean) => void
   soundEnabled: boolean
@@ -76,6 +80,10 @@ export const useAppStore = create<AppStore>((set) => ({
   setFontFamily: (font) => set({ fontFamily: font }),
   typingMode: "time",
   setTypingMode: (mode) => set({ typingMode: mode }),
+  timeLimit: 30,
+  setTimeLimit: (t) => set({ timeLimit: t }),
+  complexWords: false,
+  setComplexWords: (v) => set({ complexWords: v }),
   showKeyboard: true,
   setShowKeyboard: (v) => set({ showKeyboard: v }),
   soundEnabled: true,

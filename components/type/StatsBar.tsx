@@ -51,10 +51,11 @@ interface Props {
 
 export function StatsBar({ stats, sessionState }: Props) {
   const mode = useAppStore((s) => s.typingMode)
+  const timeLimit = useAppStore((s) => s.timeLimit)
   const formatTime = (ms: number) => {
     const sec = ms / 1000
     if (mode === "time") {
-      const timeLeft = Math.max(30 - Math.floor(sec), 0)
+      const timeLeft = Math.max(timeLimit - Math.floor(sec), 0)
       return `${timeLeft}s`
     }
     return `${sec.toFixed(1)}s`

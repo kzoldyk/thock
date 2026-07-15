@@ -62,18 +62,52 @@ function getQuoteForSeed(seed: number): string[] {
   return quote.split(" ")
 }
 
-function getTargetTextForMode(mode: "time" | "words" | "quotes", seed: number): string[] {
+export const CODE_SNIPPETS = [
+  "const [data, setData] = useState(null);",
+  "useEffect(() => { fetchData(); }, []);",
+  "function bubbleSort(arr) { for (let i = 0; i < arr.length; i++) { } }",
+  "import { create } from 'zustand';",
+  "export default function Page({ params }) { return <div>Hello</div>; }",
+  "const response = await fetch('/api/user'); const data = await response.json();",
+  "class Node { constructor(value) { this.value = value; this.next = null; } }",
+  "const unique = [...new Set(array)];",
+  "const active = items.filter(item => item.isActive);",
+  "const sum = numbers.reduce((acc, curr) => acc + curr, 0);",
+  "app.get('/api/v1/health', (req, res) => res.status(200).send('OK'));",
+  "git commit -m 'feat: add settings options'",
+  "npm install lucide-react framer-motion zustand",
+  "docker-compose up -d --build",
+  "SELECT users.id, posts.title FROM users JOIN posts ON users.id = posts.user_id;"
+]
+
+function getCodeSnippetForSeed(seed: number): string[] {
+  const idx = Math.floor(Math.abs(Math.sin(seed)) * CODE_SNIPPETS.length)
+  const snippet = CODE_SNIPPETS[idx] || CODE_SNIPPETS[0]
+  return snippet.split(" ")
+}
+
+function getTargetTextForMode(
+  mode: "time" | "words" | "quotes" | "code",
+  seed: number,
+  complexWords?: boolean,
+): string[] {
   if (mode === "time") {
-    return generateWords(150, seed)
+    return generateWords(150, seed, complexWords)
   } else if (mode === "words") {
-    return generateWords(25, seed)
+    return generateWords(25, seed, complexWords)
+  } else if (mode === "code") {
+    return getCodeSnippetForSeed(seed)
   } else {
     return getQuoteForSeed(seed)
   }
 }
 
-function freshSession(mode: "time" | "words" | "quotes", seed?: number): TypingSessionState {
-  const targetText = getTargetTextForMode(mode, seed ?? Date.now())
+function freshSession(
+  mode: "time" | "words" | "quotes" | "code",
+  seed?: number,
+  complexWords?: boolean,
+): TypingSessionState {
+  const targetText = getTargetTextForMode(mode, seed ?? Date.now(), complexWords)
   const words = createWords(targetText)
   words[0].isCurrent = true
   return {
@@ -143,6 +177,8 @@ export function useTypingSession(
 
   const layout = useMemo(() => getLayout(layoutId), [layoutId])
   const typingMode = useAppStore((s) => s.typingMode)
+  const complexWords = useAppStore((s) => s.complexWords)
+  const timeLimit = useAppStore((s) => s.timeLimit)
 
   const rerender = useCallback(() => {
     setViewState({ ...sessionRef.current })
@@ -158,11 +194,11 @@ export function useTypingSession(
   // Re-seed words after hydration or mode change so they differ per session
   useEffect(() => {
     const seed = Date.now()
-    sessionRef.current = freshSession(typingMode, seed)
+    sessionRef.current = freshSession(typingMode, seed, complexWords)
     activeKeysRef.current.clear()
     resetStatsBuffers()
     rerender()
-  }, [typingMode, rerender, resetStatsBuffers])
+  }, [typingMode, complexWords, timeLimit, rerender, resetStatsBuffers])
 
   const getPanValue = useCallback(
     (code: string): number => {
@@ -180,11 +216,12 @@ export function useTypingSession(
     const now = performance.now()
     let elapsed = s.endTime ? s.endTime - s.startTime : now - s.startTime
 
-    // 30 seconds deadline threshold check (only in time mode)
-    if (typingMode === "time" && s.state === "typing" && elapsed >= 30000) {
+    // dynamic seconds deadline threshold check (only in time mode)
+    const thresholdMs = timeLimit * 1000
+    if (typingMode === "time" && s.state === "typing" && elapsed >= thresholdMs) {
       s.state = "finished"
-      s.endTime = s.startTime + 30000
-      elapsed = 30000
+      s.endTime = s.startTime + thresholdMs
+      elapsed = thresholdMs
       if (timerRef.current) {
         clearInterval(timerRef.current)
         timerRef.current = null
@@ -192,7 +229,8 @@ export function useTypingSession(
     }
     
     // Flow mode logic
-    if (s.state === "typing" && elapsed >= 20000 && !useAppStore.getState().flowMode) {
+    const flowThreshold = Math.min(20000, thresholdMs * 0.67)
+    if (s.state === "typing" && elapsed >= flowThreshold && !useAppStore.getState().flowMode) {
       // Check if they are still typing actively (last keystroke within 3s)
       const lastStroke = s.keystrokes[s.keystrokes.length - 1];
       if (lastStroke && (now - lastStroke.timestamp < 3000)) {
@@ -253,7 +291,7 @@ export function useTypingSession(
       if (code === "Tab") {
         e.preventDefault()
         const seed = Date.now()
-        sessionRef.current = freshSession(typingMode, seed)
+        sessionRef.current = freshSession(typingMode, seed, complexWords)
         timerRef.current = null
         activeKeysRef.current.clear()
         setActiveKeysView(new Set())
@@ -416,7 +454,7 @@ export function useTypingSession(
         }
       }
     },
-    [keyboardRef, getPanValue, computeLatestStats, rerender, resetStatsBuffers, typingMode, disabled],
+    [keyboardRef, getPanValue, computeLatestStats, rerender, resetStatsBuffers, typingMode, complexWords, disabled],
   )
 
   useEffect(() => {
@@ -463,7 +501,7 @@ export function useTypingSession(
 
   const restart = useCallback(() => {
     const seed = Date.now()
-    sessionRef.current = freshSession(typingMode, seed)
+    sessionRef.current = freshSession(typingMode, seed, complexWords)
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
@@ -479,7 +517,7 @@ export function useTypingSession(
       totalTyped: 0, correctChars: 0,
     }
     rerender()
-  }, [typingMode, rerender, resetStatsBuffers])
+  }, [typingMode, complexWords, rerender, resetStatsBuffers])
 
   const emitKeyEvent = useCallback(
     (code: string, type: "down" | "up") => {

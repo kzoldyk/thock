@@ -110,8 +110,53 @@ function pickRandom<T>(arr: T[], count: number, seed: number): T[] {
   return copy.slice(0, count)
 }
 
-export function generateWords(count: number = 30, seed?: number): string[] {
-  return pickRandom(commonWords, count, seed ?? 42)
+export function generateWords(count: number = 30, seed?: number, complex: boolean = false): string[] {
+  const words = pickRandom(commonWords, count, seed ?? 42)
+  if (!complex) return words
+
+  const rng = mulberry32(seed ?? 42)
+  
+  return words.map((word) => {
+    let newWord = word
+    const r = rng()
+    
+    // 1. Capitalization (caps & smalls)
+    if (r < 0.25) {
+      // Capitalize first letter
+      newWord = newWord.charAt(0).toUpperCase() + newWord.slice(1)
+    } else if (r < 0.35) {
+      // All caps
+      newWord = newWord.toUpperCase()
+    } else if (r < 0.45) {
+      // Mixed caps (smalls and caps)
+      newWord = newWord.split("").map((c, i) => i % 2 === 0 ? c.toUpperCase() : c.toLowerCase()).join("")
+    }
+
+    // 2. Symbols and proper symbols
+    const rSym = rng()
+    if (rSym < 0.15) {
+      // Add punctuation at end
+      const puncs = [".", ",", "?", "!", ";", ":"]
+      const punc = puncs[Math.floor(rng() * puncs.length)]
+      newWord = newWord + punc
+    } else if (rSym < 0.25) {
+      // Wrap with brackets or quotes
+      const wraps = [["(", ")"], ["[", "]"], ["{", "}"], ["\"", "\""], ["'", "'"]]
+      const wrap = wraps[Math.floor(rng() * wraps.length)]
+      newWord = wrap[0] + newWord + wrap[1]
+    } else if (rSym < 0.35) {
+      // Add other common symbols/characters
+      const symbols = ["@", "#", "$", "%", "^", "&", "*", "-", "_", "+", "=", "|", "/", "\\"]
+      const sym = symbols[Math.floor(rng() * symbols.length)]
+      if (rng() < 0.5) {
+        newWord = sym + newWord
+      } else {
+        newWord = newWord + sym
+      }
+    }
+
+    return newWord
+  })
 }
 
 export function generateSentence(): string {

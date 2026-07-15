@@ -48,7 +48,7 @@ function SegmentedControl<T extends string>({
   )
 }
 
-function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontClass: string }) {
+function SettingsPanel({ fontClass }: { isDarkMode: boolean; fontClass: string }) {
   const {
     settingsOpen, setSettingsOpen,
     layoutId, setLayoutId,
@@ -63,11 +63,15 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
     reducedMotion, setReducedMotion,
     fontFamily, setFontFamily,
     typingMode, setTypingMode,
+    timeLimit, setTimeLimit,
+    complexWords, setComplexWords,
     showKeyboard, setShowKeyboard,
     soundEnabled, setSoundEnabled,
     keyboardType, setKeyboardType,
     dampenerId, setDampenerId,
   } = useAppStore()
+
+  const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
 
   return (
     <AnimatePresence>
@@ -78,10 +82,10 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={cn(
-              "fixed inset-0 backdrop-blur-xl",
-              isDarkMode ? "bg-zinc-950/60" : "bg-zinc-950/20",
-            )}
+            className="fixed inset-0 backdrop-blur-xl"
+            style={{
+              backgroundColor: theme.background + "a0",
+            }}
             onClick={() => setSettingsOpen(false)}
           />
 
@@ -99,7 +103,7 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
               background: "var(--chrome-surface-strong)",
             }}
           >
-            <div className="flex items-center justify-between pb-4 border-b border-white/10 dark:border-white/8">
+            <div className="flex items-center justify-between pb-4 border-b border-[var(--chrome-border)]">
               <div className="flex flex-col">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--muted)] opacity-80">Preferences</p>
                 <h2 className="mt-1 text-base font-semibold tracking-tight text-[var(--foreground)]">Workspace styling</h2>
@@ -107,7 +111,7 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
               </div>
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors border border-white/10 dark:border-white/10 bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface)] cursor-pointer"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface)] cursor-pointer"
               >
                 ✕
               </button>
@@ -119,10 +123,10 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
                   <select
                     value={appThemeId}
                     onChange={(e) => setAppThemeId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
                   >
                     {appThemes.map((theme) => (
-                      <option key={theme.id} value={theme.id} className="bg-zinc-950 text-zinc-50">{theme.name}</option>
+                      <option key={theme.id} value={theme.id} className="bg-[var(--background)] text-[var(--foreground)]">{theme.name}</option>
                     ))}
                   </select>
                 </Section>
@@ -131,10 +135,10 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
                   <select
                     value={keyboardThemeId}
                     onChange={(e) => setKeyboardThemeId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
                   >
                     {keyboardThemes.map((theme) => (
-                      <option key={theme.id} value={theme.id} className="bg-zinc-950 text-zinc-50">{theme.name}</option>
+                      <option key={theme.id} value={theme.id} className="bg-[var(--background)] text-[var(--foreground)]">{theme.name}</option>
                     ))}
                   </select>
                 </Section>
@@ -143,14 +147,14 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
                   <select
                     value={fontFamily}
                     onChange={(e) => setFontFamily(e.target.value as FontFamily)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
                   >
-                    <option value="inter">Inter</option>
-                    <option value="geist">Geist</option>
-                    <option value="sf-pro">SF Pro</option>
-                    <option value="jetbrains-mono">JetBrains Mono</option>
-                    <option value="ibm-plex-mono">IBM Plex Mono</option>
-                    <option value="source-code-pro">Source Code Pro</option>
+                    <option value="inter" className="bg-[var(--background)] text-[var(--foreground)]">Inter</option>
+                    <option value="geist" className="bg-[var(--background)] text-[var(--foreground)]">Geist</option>
+                    <option value="sf-pro" className="bg-[var(--background)] text-[var(--foreground)]">SF Pro</option>
+                    <option value="jetbrains-mono" className="bg-[var(--background)] text-[var(--foreground)]">JetBrains Mono</option>
+                    <option value="ibm-plex-mono" className="bg-[var(--background)] text-[var(--foreground)]">IBM Plex Mono</option>
+                    <option value="source-code-pro" className="bg-[var(--background)] text-[var(--foreground)]">Source Code Pro</option>
                   </select>
                 </Section>
 
@@ -171,19 +175,50 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
                       { id: "time", label: "Time" },
                       { id: "words", label: "Words" },
                       { id: "quotes", label: "Quotes" },
+                      { id: "code", label: "Code" },
                     ]}
                     value={typingMode}
                     onChange={setTypingMode}
                   />
                 </Section>
 
+                {typingMode === "time" && (
+                  <Section title="Time Limit">
+                    <select
+                      value={timeLimit}
+                      onChange={(e) => setTimeLimit(parseInt(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
+                    >
+                      {[15, 30, 60, 120].map((t) => (
+                        <option key={t} value={t} className="bg-[var(--background)] text-[var(--foreground)]">
+                          {t} seconds
+                        </option>
+                      ))}
+                    </select>
+                  </Section>
+                )}
+
+                {(typingMode === "time" || typingMode === "words") && (
+                  <Section title="Text Difficulty">
+                    <label className="flex items-center justify-between p-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs font-semibold cursor-pointer select-none">
+                      <span className="text-[var(--muted)]">Complex (Caps & Symbols)</span>
+                      <input
+                        type="checkbox"
+                        checked={complexWords}
+                        onChange={(e) => setComplexWords(e.target.checked)}
+                        className="rounded accent-[var(--accent)] w-4 h-4 cursor-pointer"
+                      />
+                    </label>
+                  </Section>
+                )}
+
                 <Section title="Switch Sounds Pack">
                   <select
                     value={switchPackId}
                     onChange={(e) => setSwitchPackId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
                   >
-                    <option value="default" className="bg-zinc-950 text-zinc-50">Cherry Blue Switches</option>
+                    <option value="default" className="bg-[var(--background)] text-[var(--foreground)]">Cherry Blue Switches</option>
                   </select>
                 </Section>
 
@@ -191,12 +226,12 @@ function SettingsPanel({ isDarkMode, fontClass }: { isDarkMode: boolean; fontCla
                   <select
                     value={dampenerId}
                     onChange={(e) => setDampenerId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
                   >
-                    <option value="none" className="bg-zinc-950 text-zinc-50">None (Pure Clack)</option>
-                    <option value="tape" className="bg-zinc-950 text-zinc-50">Tape Mod (Creamy Mids)</option>
-                    <option value="foam" className="bg-zinc-950 text-zinc-50">Foam Mod (Deep Thock)</option>
-                    <option value="gasket" className="bg-zinc-950 text-zinc-50">Gasket Mount (Soft Cushioned)</option>
+                    <option value="none" className="bg-[var(--background)] text-[var(--foreground)]">None (Pure Clack)</option>
+                    <option value="tape" className="bg-[var(--background)] text-[var(--foreground)]">Tape Mod (Creamy Mids)</option>
+                    <option value="foam" className="bg-[var(--background)] text-[var(--foreground)]">Foam Mod (Deep Thock)</option>
+                    <option value="gasket" className="bg-[var(--background)] text-[var(--foreground)]">Gasket Mount (Soft Cushioned)</option>
                   </select>
                 </Section>
 
