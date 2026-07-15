@@ -158,8 +158,11 @@ async function ensureDbInitialized(db: DatabaseClient) {
   }
 }
 
-// Resolver for finding the database client
-function resolveDatabaseClient(): DatabaseClient {
+let cachedDbClient: DatabaseClient | null = null;
+
+function getDbClient(): DatabaseClient {
+  if (cachedDbClient) return cachedDbClient;
+
   // Check native Cloudflare bindings
   const envDb = typeof process !== "undefined" && process.env ? process.env.DB : undefined;
   const binding =
@@ -169,7 +172,8 @@ function resolveDatabaseClient(): DatabaseClient {
 
   if (binding) {
     console.log("[db] Using Native Cloudflare D1 driver binding.");
-    return new D1NativeClient(binding);
+    cachedDbClient = new D1NativeClient(binding);
+    return cachedDbClient;
   }
 
   // Check REST HTTP API config
@@ -180,27 +184,29 @@ function resolveDatabaseClient(): DatabaseClient {
 
   if (accountId && databaseId && apiToken) {
     console.log("[db] Using Cloudflare D1 REST HTTP API driver.");
-    return new D1RestClient(accountId, databaseId, apiToken);
+    cachedDbClient = new D1RestClient(accountId, databaseId, apiToken);
+    return cachedDbClient;
   }
 
-  // Fallback to in-memory mock
+  // Fallback to in-memory mock (do not cache mock to allow checking again if D1 becomes available)
   console.log("[db] Cloudflare D1 bindings not detected. Falling back to edge-compatible in-memory DB.");
   return new MemoryMockClient();
 }
 
-const rawDb = resolveDatabaseClient();
-
 export const db: DatabaseClient = {
   async query<T = any>(sql: string, params?: any[]): Promise<T[]> {
-    await ensureDbInitialized(rawDb);
-    return rawDb.query<T>(sql, params);
+    const client = getDbClient();
+    await ensureDbInitialized(client);
+    return client.query<T>(sql, params);
   },
   async execute(sql: string, params?: any[]): Promise<void> {
-    await ensureDbInitialized(rawDb);
-    return rawDb.execute(sql, params);
+    const client = getDbClient();
+    await ensureDbInitialized(client);
+    return client.execute(sql, params);
   },
   async batch(queries: { sql: string; params?: any[] }[]): Promise<void> {
-    await ensureDbInitialized(rawDb);
-    return rawDb.batch(queries);
+    const client = getDbClient();
+    await ensureDbInitialized(client);
+    return client.batch(queries);
   }
 };
