@@ -21,5 +21,12 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "thock",
+      "database_id": "6dbbe2e3-4275-4851-8839-91df2f45f544"
+    }
+  ]
 }
