@@ -151,8 +151,33 @@ async function ensureDbInitialized(db: DatabaseClient) {
           updated_at INTEGER NOT NULL,
           FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )`
+      },
+      {
+        sql: `CREATE TABLE IF NOT EXISTS unique_devices (
+          device_id TEXT PRIMARY KEY,
+          visit_count INTEGER NOT NULL DEFAULT 1,
+          last_visited_at INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          ip_address TEXT,
+          user_agent TEXT,
+          os TEXT,
+          browser TEXT,
+          device_type TEXT,
+          country TEXT
+        )`
       }
     ]);
+    
+    // Auto-migrate new columns for existing table
+    const columnsToAdd = ['ip_address', 'user_agent', 'os', 'browser', 'device_type', 'country'];
+    for (const col of columnsToAdd) {
+      try {
+        await db.execute(`ALTER TABLE unique_devices ADD COLUMN ${col} TEXT`);
+      } catch (err) {
+        // Ignore errors if column already exists
+      }
+    }
+
     isDbInitialized = true;
   } catch (err) {
     console.error("Database initialization failed:", err);

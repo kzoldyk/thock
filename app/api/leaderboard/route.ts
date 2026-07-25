@@ -104,27 +104,38 @@ export async function POST(request: Request) {
 
     const payload = await verifyJwt(token, JWT_SECRET);
     if (!payload) {
-      return NextResponse.json({ error: "Invalid session. Please sign in again." }, { status: 401 });
+      const response = NextResponse.json({ error: "Invalid session. Please sign in again." }, { status: 401 });
+      response.headers.set(
+        "Set-Cookie",
+        "thock_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+      );
+      return response;
     }
 
-    const { wpm, accuracy, consistency, timeLimit, mode } = await request.json();
+    // Verify user exists in database
+    const users = await db.query("SELECT id FROM users WHERE id = ?", [payload.id]);
+    if (!users || users.length === 0) {
+      const response = NextResponse.json({ error: "User session invalid. Please sign in again." }, { status: 401 });
+      response.headers.set(
+        "Set-Cookie",
+        "thock_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+      );
+      return response;
+    }
 
-    // Validations
-    if (typeof wpm !== "number" || wpm < 0 || wpm > 350) {
-      return NextResponse.json({ error: "Invalid WPM score" }, { status: 400 });
-    }
-    if (typeof accuracy !== "number" || accuracy < 0 || accuracy > 100) {
-      return NextResponse.json({ error: "Invalid accuracy score" }, { status: 400 });
-    }
-    if (typeof consistency !== "number" || consistency < 0 || consistency > 100) {
-      return NextResponse.json({ error: "Invalid consistency score" }, { status: 400 });
-    }
-    if (typeof timeLimit !== "number" || timeLimit <= 0) {
-      return NextResponse.json({ error: "Invalid time limit" }, { status: 400 });
-    }
-    if (typeof mode !== "string" || !mode) {
-      return NextResponse.json({ error: "Invalid game mode" }, { status: 400 });
-    }
+    const body = await request.json();
+    const rawWpm = Number(body.wpm);
+    const rawAccuracy = Number(body.accuracy);
+    const rawConsistency = Number(body.consistency);
+    const rawTimeLimit = Number(body.timeLimit);
+    const rawMode = String(body.mode || "time");
+
+    // Normalizations & Range Bounds
+    const wpm = !isNaN(rawWpm) ? Math.max(0, Math.min(350, Math.round(rawWpm))) : 0;
+    const accuracy = !isNaN(rawAccuracy) ? Math.max(0, Math.min(100, Math.round(rawAccuracy))) : 100;
+    const consistency = !isNaN(rawConsistency) ? Math.max(0, Math.min(100, Math.round(rawConsistency))) : 100;
+    const timeLimit = !isNaN(rawTimeLimit) && rawTimeLimit > 0 ? Math.round(rawTimeLimit) : 30;
+    const mode = rawMode;
 
     const scoreId = crypto.randomUUID();
     const createdAt = Date.now();

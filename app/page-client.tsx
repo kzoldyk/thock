@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { KeyboardScene, type KeyboardHandle } from "@/components/keyboard/KeyboardScene"
 import { Keyboard2D } from "@/components/keyboard/Keyboard2D"
 import { StatsBar } from "@/components/type/StatsBar"
+import { QuickBar } from "@/components/type/QuickBar"
 import { WordsDisplay } from "@/components/type/Words"
 import { ResultCard } from "@/components/type/ResultCard"
 import { useTypingSession, DEV_QUOTES } from "@/hooks/useTypingSession"
@@ -50,7 +51,7 @@ function SegmentedControl<T extends string>({
   )
 }
 
-function SettingsPanel({ fontClass }: { isDarkMode: boolean; fontClass: string }) {
+function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontClass: string; currentUser: { id: string; username: string } | null }) {
   const {
     settingsOpen, setSettingsOpen,
     layoutId, setLayoutId,
@@ -70,8 +71,81 @@ function SettingsPanel({ fontClass }: { isDarkMode: boolean; fontClass: string }
     showKeyboard, setShowKeyboard,
     soundEnabled, setSoundEnabled,
     keyboardType, setKeyboardType,
+    flowMode,
     dampenerId, setDampenerId,
   } = useAppStore()
+
+  const store = useAppStore()
+
+  const [initialSnapshot, setInitialSnapshot] = useState<any>(null)
+  const [showSavePrompt, setShowSavePrompt] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Capture snapshot when modal opens
+  useEffect(() => {
+    if (settingsOpen) {
+      setInitialSnapshot({
+        layoutId, keyboardThemeId, appThemeId, switchPackId, volume, keyVolume,
+        reducedMotion, stereoWidth, reverb, pitch, fontFamily, typingMode,
+        timeLimit, complexWords, showKeyboard, soundEnabled, keyboardType,
+        flowMode, dampenerId
+      })
+      setShowSavePrompt(false)
+    }
+  }, [settingsOpen])
+
+  const handleCloseRequest = () => {
+    if (!initialSnapshot) {
+      setSettingsOpen(false)
+      return
+    }
+
+    const currentSnapshot = {
+      layoutId, keyboardThemeId, appThemeId, switchPackId, volume, keyVolume,
+      reducedMotion, stereoWidth, reverb, pitch, fontFamily, typingMode,
+      timeLimit, complexWords, showKeyboard, soundEnabled, keyboardType,
+      flowMode, dampenerId
+    }
+
+    const hasChanges = JSON.stringify(initialSnapshot) !== JSON.stringify(currentSnapshot)
+    
+    // Only prompt if there are changes AND the user is logged in
+    if (hasChanges && currentUser) {
+      setShowSavePrompt(true)
+    } else {
+      setSettingsOpen(false)
+    }
+  }
+
+  const handleSaveAndClose = async () => {
+    if (!currentUser) return
+    setIsSaving(true)
+    try {
+      const currentPrefs = {
+        layoutId, keyboardThemeId, appThemeId, switchPackId, volume, keyVolume,
+        reducedMotion, stereoWidth, reverb, pitch, fontFamily, typingMode,
+        timeLimit, complexWords, showKeyboard, soundEnabled, keyboardType,
+        flowMode, dampenerId
+      }
+      await fetch("/api/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferences: currentPrefs }),
+      })
+    } catch (err) {
+      console.error("Failed to save preferences", err)
+    } finally {
+      setIsSaving(false)
+      setSettingsOpen(false)
+    }
+  }
+
+  const handleDiscardAndClose = () => {
+    if (initialSnapshot) {
+      store.loadPreferences(initialSnapshot)
+    }
+    setSettingsOpen(false)
+  }
 
   const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
 
@@ -88,7 +162,7 @@ function SettingsPanel({ fontClass }: { isDarkMode: boolean; fontClass: string }
             style={{
               backgroundColor: theme.background + "a0",
             }}
-            onClick={() => setSettingsOpen(false)}
+            onClick={handleCloseRequest}
           />
 
           {/* Centered Floating Glass Modal */}
@@ -105,6 +179,40 @@ function SettingsPanel({ fontClass }: { isDarkMode: boolean; fontClass: string }
               background: "var(--chrome-surface-strong)",
             }}
           >
+            {showSavePrompt ? (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--chrome-surface-strong)] rounded-[28px] p-6 backdrop-blur-md">
+                <div className="text-center max-w-sm">
+                  <h3 className="text-lg font-bold text-[var(--foreground)] mb-2">Unsaved Changes</h3>
+                  <p className="text-sm text-[var(--muted)] mb-6">
+                    You have unsaved changes to your workspace settings. Would you like to save them to your account?
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={handleSaveAndClose}
+                      disabled={isSaving}
+                      className="w-full py-2.5 rounded-xl bg-[var(--accent)] text-white font-semibold text-sm shadow-sm transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {isSaving ? "Saving..." : "Save Preferences"}
+                    </button>
+                    <button 
+                      onClick={handleDiscardAndClose}
+                      disabled={isSaving}
+                      className="w-full py-2.5 rounded-xl bg-[var(--chrome-surface-soft)] text-[var(--foreground)] border border-[var(--chrome-border)] font-medium text-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      Don't Save
+                    </button>
+                    <button 
+                      onClick={() => setShowSavePrompt(false)}
+                      disabled={isSaving}
+                      className="w-full py-2 text-[var(--muted)] hover:text-[var(--foreground)] text-xs font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex items-center justify-between pb-4 border-b border-[var(--chrome-border)]">
               <div className="flex flex-col">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--muted)] opacity-80">Preferences</p>
@@ -112,7 +220,7 @@ function SettingsPanel({ fontClass }: { isDarkMode: boolean; fontClass: string }
                 <p className="text-[11px] text-[var(--muted)] max-w-[34ch]">Tune the keyboard, typography, and ambient chrome so the whole interface feels aligned.</p>
               </div>
               <button
-                onClick={() => setSettingsOpen(false)}
+                onClick={handleCloseRequest}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface)] cursor-pointer"
               >
                 ✕
@@ -321,7 +429,7 @@ function SettingsPanel({ fontClass }: { isDarkMode: boolean; fontClass: string }
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <h3 className="text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--muted)] opacity-80">
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--muted)] opacity-90">
         {title}
       </h3>
       {children}
@@ -432,10 +540,24 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("Practice")
   const [windowFocused, setWindowFocused] = useState(true)
   const [visitorCount, setVisitorCount] = useState<number | null>(null)
+  const [uniqueVisitorCount, setUniqueVisitorCount] = useState<number | null>(null)
   const [mobileQuoteIdx, setMobileQuoteIdx] = useState(0)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null)
   const [authOpen, setAuthOpen] = useState(false)
+  const [forceMobileTyping, setForceMobileTyping] = useState(false)
+
+  useEffect(() => {
+    const handleHardwareKey = (e: KeyboardEvent) => {
+      if (e.key && e.key.length === 1 && !forceMobileTyping) {
+        const target = e.target as HTMLElement | null
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return
+        setForceMobileTyping(true)
+      }
+    }
+    window.addEventListener("keydown", handleHardwareKey)
+    return () => window.removeEventListener("keydown", handleHardwareKey)
+  }, [forceMobileTyping])
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -504,89 +626,6 @@ export default function Home() {
     }
   }, [currentUser])
 
-  // Select settings from Zustand to track updates for Cloud sync
-  const prefLayoutId = useAppStore((s) => s.layoutId)
-  const prefKeyboardThemeId = useAppStore((s) => s.keyboardThemeId)
-  const prefAppThemeId = useAppStore((s) => s.appThemeId)
-  const prefSwitchPackId = useAppStore((s) => s.switchPackId)
-  const prefVolume = useAppStore((s) => s.volume)
-  const prefKeyVolume = useAppStore((s) => s.keyVolume)
-  const prefReducedMotion = useAppStore((s) => s.reducedMotion)
-  const prefStereoWidth = useAppStore((s) => s.stereoWidth)
-  const prefReverb = useAppStore((s) => s.reverb)
-  const prefPitch = useAppStore((s) => s.pitch)
-  const prefFontFamily = useAppStore((s) => s.fontFamily)
-  const prefTypingMode = useAppStore((s) => s.typingMode)
-  const prefTimeLimit = useAppStore((s) => s.timeLimit)
-  const prefComplexWords = useAppStore((s) => s.complexWords)
-  const prefShowKeyboard = useAppStore((s) => s.showKeyboard)
-  const prefSoundEnabled = useAppStore((s) => s.soundEnabled)
-  const prefKeyboardType = useAppStore((s) => s.keyboardType)
-  const prefFlowMode = useAppStore((s) => s.flowMode)
-  const prefDampenerId = useAppStore((s) => s.dampenerId)
-
-  // Debounced cloud preferences sync on settings modification
-  useEffect(() => {
-    if (!currentUser) return
-
-    const timer = setTimeout(async () => {
-      try {
-        const currentPrefs = {
-          layoutId: prefLayoutId,
-          keyboardThemeId: prefKeyboardThemeId,
-          appThemeId: prefAppThemeId,
-          switchPackId: prefSwitchPackId,
-          volume: prefVolume,
-          keyVolume: prefKeyVolume,
-          reducedMotion: prefReducedMotion,
-          stereoWidth: prefStereoWidth,
-          reverb: prefReverb,
-          pitch: prefPitch,
-          fontFamily: prefFontFamily,
-          typingMode: prefTypingMode,
-          timeLimit: prefTimeLimit,
-          complexWords: prefComplexWords,
-          showKeyboard: prefShowKeyboard,
-          soundEnabled: prefSoundEnabled,
-          keyboardType: prefKeyboardType,
-          flowMode: prefFlowMode,
-          dampenerId: prefDampenerId,
-        }
-
-        await fetch("/api/preferences", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ preferences: currentPrefs }),
-        })
-      } catch (err) {
-        console.error("Failed to sync updated preferences to cloud:", err)
-      }
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [
-    currentUser,
-    prefLayoutId,
-    prefKeyboardThemeId,
-    prefAppThemeId,
-    prefSwitchPackId,
-    prefVolume,
-    prefKeyVolume,
-    prefReducedMotion,
-    prefStereoWidth,
-    prefReverb,
-    prefPitch,
-    prefFontFamily,
-    prefTypingMode,
-    prefTimeLimit,
-    prefComplexWords,
-    prefShowKeyboard,
-    prefSoundEnabled,
-    prefKeyboardType,
-    prefFlowMode,
-    prefDampenerId,
-  ])
-  
   const mobileQuote = DEV_QUOTES[mobileQuoteIdx] || DEV_QUOTES[0]
   const cycleMobileQuote = () => {
     setMobileQuoteIdx((prev) => (prev + 1) % DEV_QUOTES.length)
@@ -652,11 +691,24 @@ export default function Home() {
   useEffect(() => {
     const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     
-    fetch(`/api/visits?local=${isLocal}`)
+    let deviceId = localStorage.getItem("thock_device_id")
+    if (!deviceId) {
+      deviceId = crypto.randomUUID()
+      localStorage.setItem("thock_device_id", deviceId)
+    }
+
+    fetch(`/api/visits?local=${isLocal}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId })
+    })
       .then(res => res.json())
       .then(data => {
         if (data && typeof data.count === "number") {
           setVisitorCount(data.count)
+        }
+        if (data && typeof data.uniqueCount === "number") {
+          setUniqueVisitorCount(data.uniqueCount)
         }
       })
       .catch(err => console.warn("[counter] failed to fetch visitor count:", err))
@@ -762,8 +814,8 @@ export default function Home() {
       <div className="absolute top-[-15%] left-[15%] right-[15%] h-[40%] bg-gradient-to-b from-[var(--accent)]/3 to-transparent rounded-full blur-[130px] pointer-events-none z-[0] opacity-80" />
       <div className="absolute bottom-[-15%] left-[25%] right-[25%] h-[35%] bg-gradient-to-t from-[var(--accent)]/3 to-transparent rounded-full blur-[110px] pointer-events-none z-[0] opacity-70" />
 
-      {/* Desktop Layout (Hidden on mobile) */}
-      <div className="hidden md:flex flex-col flex-1 justify-between relative z-10">
+      {/* Main Layout Container */}
+      <div className={cn(forceMobileTyping ? "flex" : "hidden md:flex", "flex-col flex-1 justify-between relative z-10")}>
         {/* Header Navigation */}
         <header className={cn(
           "flex items-center justify-between px-8 py-5 relative z-10 select-none flow-transition",
@@ -896,6 +948,13 @@ export default function Home() {
         <div className="flex-1 flex flex-col justify-between py-4 relative z-10">
           {activeTab === "Practice" ? (
             <>
+              {/* Quick Mode & Timer Toolbar */}
+              {sessionState !== "finished" && (
+                <div className={cn("flex justify-center pt-2 pb-1 flow-transition z-20", (flowMode || sessionState === "typing") && "flow-fade-out")}>
+                  <QuickBar />
+                </div>
+              )}
+
               {/* Stats bar */}
               {sessionState !== "finished" && (
                 <div className={cn("flex justify-center flow-transition", (flowMode || sessionState === "typing") && "flow-fade-out")}>
@@ -993,7 +1052,7 @@ export default function Home() {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]"></span>
                   </span>
                   <span>
-                    Visited by <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> typists
+                    Visited by <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> times {uniqueVisitorCount !== null && <span className="text-[var(--muted)] opacity-80">({uniqueVisitorCount.toLocaleString()} unique devices)</span>}
                   </span>
                 </span>
               </div>
@@ -1002,8 +1061,8 @@ export default function Home() {
         )}
       </div>
 
-      {/* Mobile Layout (Visible only on mobile) */}
-      <div className="md:hidden flex flex-col flex-1 justify-between p-6 sm:p-8 relative z-10 text-center min-h-[calc(100dvh-20px)]">
+      {/* Mobile Layout (Visible only on mobile when not forcing typing mode) */}
+      <div className={cn(forceMobileTyping ? "hidden" : "hidden max-md:flex", "flex-col flex-1 justify-between p-6 sm:p-8 relative z-10 text-center min-h-[calc(100dvh-20px)]")}>
         {/* Top: Logo & Theme Toggle */}
         <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-2.5 cursor-default select-none">
@@ -1062,10 +1121,17 @@ export default function Home() {
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-[12px] text-[var(--muted)] mt-2 mb-8 max-w-[28ch] leading-relaxed"
+            className="text-[12px] text-[var(--muted)] mt-2 mb-4 max-w-[28ch] leading-relaxed"
           >
-            thock. is a physical keyboard playground with real-time audio synthesis. Open on a laptop to type and hear clacks.
+            thock. is a physical keyboard playground with real-time audio synthesis. Open on a laptop or connect a Bluetooth keyboard to type.
           </motion.p>
+
+          <button
+            onClick={() => setForceMobileTyping(true)}
+            className="mb-8 px-4 py-2 text-xs font-bold rounded-xl bg-[var(--accent)] text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer button-lift"
+          >
+            ⌨️ Start Hardware Typing
+          </button>
 
           {/* Interactive Quote Card */}
           <motion.div
@@ -1121,7 +1187,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      <SettingsPanel isDarkMode={isDark} fontClass={fontClass} />
+      <SettingsPanel isDarkMode={isDark} fontClass={fontClass} currentUser={currentUser} />
       <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} isDarkMode={isDark} fontClass={fontClass} />
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} fontClass={fontClass} onSuccess={(user) => setCurrentUser(user)} />
 

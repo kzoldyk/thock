@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, memo } from "react"
 import { getLayout } from "@/lib/keyboard-layouts"
 import { keyboardThemes } from "@/lib/themes"
 import type { LayoutId } from "@/types"
@@ -29,7 +29,7 @@ function getKeyType(code: string): "esc" | "modifier" | "number" | "alpha" {
   return "alpha"
 }
 
-export function Keyboard2D({ layoutId, themeId, activeKeys }: Props) {
+export const Keyboard2D = memo(function Keyboard2D({ layoutId, themeId, activeKeys }: Props) {
   const layout = useMemo(() => getLayout(layoutId), [layoutId])
   const theme = useMemo(
     () => keyboardThemes.find((t) => t.id === themeId) || keyboardThemes[0],
@@ -101,4 +101,4 @@ export function Keyboard2D({ layoutId, themeId, activeKeys }: Props) {
       </div>
     </div>
   )
-}
+})

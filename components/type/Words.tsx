@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useEffect, useState } from "react"
+import { useMemo, useRef, useEffect, useState, memo } from "react"
 import { motion } from "framer-motion"
 import type { WordData, SessionState } from "@/types"
 import { cn } from "@/lib/utils"
@@ -14,7 +14,7 @@ interface WordsDisplayProps {
   sessionState?: SessionState
 }
 
-export function WordsDisplay({ words, currentWordIndex, currentCharIndex, sessionState = "idle" }: WordsDisplayProps) {
+export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex, currentCharIndex, sessionState = "idle" }: WordsDisplayProps) {
   const fontFamily = useAppStore((s) => s.fontFamily)
   const containerRef = useRef<HTMLDivElement>(null)
   const activeWordRef = useRef<HTMLSpanElement>(null)
@@ -165,4 +165,4 @@ export function WordsDisplay({ words, currentWordIndex, currentCharIndex, sessio
       </div>
     </div>
   )
-}
+})

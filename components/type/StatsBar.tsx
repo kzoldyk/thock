@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import type { SessionState, TypingStats } from "@/types"
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber"
 import { useAppStore } from "@/stores/useAppStore"
@@ -23,7 +24,7 @@ function StatItem({ label, value, suffix, format }: StatItemProps) {
       "transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 cursor-default"
     )}>
       <span className={cn(
-        "text-[10px] font-bold tracking-widest text-[var(--muted)] uppercase mb-1.5 opacity-80",
+        "text-[11px] font-bold tracking-widest text-[var(--muted)] uppercase mb-1.5 opacity-95",
         fontClass
       )}>
         {label}
@@ -49,7 +50,7 @@ interface Props {
   totalWords?: number
 }
 
-export function StatsBar({ stats, sessionState }: Props) {
+export const StatsBar = memo(function StatsBar({ stats, sessionState }: Props) {
   const mode = useAppStore((s) => s.typingMode)
   const timeLimit = useAppStore((s) => s.timeLimit)
   const formatTime = (ms: number) => {
@@ -76,4 +77,4 @@ export function StatsBar({ stats, sessionState }: Props) {
       </div>
     </div>
   )
-}
+})

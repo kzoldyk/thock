@@ -54,23 +54,24 @@ export function ResultCard({ stats, onRestart, history, currentUser, onOpenAuth 
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            wpm: stats.wpm,
-            accuracy: stats.accuracy,
-            consistency: stats.consistency,
-            timeLimit: timeLimit,
-            mode: typingMode,
+            wpm: Math.round(Number.isNaN(stats.wpm) ? 0 : stats.wpm),
+            accuracy: Math.round(Number.isNaN(stats.accuracy) ? 100 : stats.accuracy),
+            consistency: Math.round(Number.isNaN(stats.consistency) ? 100 : stats.consistency),
+            timeLimit: timeLimit || 30,
+            mode: typingMode || "time",
           }),
         })
 
         if (!res.ok) {
-          throw new Error("Failed to submit score")
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed to submit score (${res.status})`);
         }
 
         if (active) {
           setSubmissionStatus("success")
         }
-      } catch (err) {
-        console.error("Score submission error:", err)
+      } catch (err: any) {
+        console.error("[leaderboard] Score submission error:", err?.message || err)
         if (active) {
           setSubmissionStatus("error")
         }

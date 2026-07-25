@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useMemo, forwardRef, useImperativeHandle, useEffect } from "react"
+import { useRef, useMemo, forwardRef, useImperativeHandle, useEffect, Suspense } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { ContactShadows, useGLTF } from "@react-three/drei"
 import * as THREE from "three"
@@ -221,7 +221,9 @@ export const KeyboardScene = forwardRef<KeyboardHandle, { layoutId: LayoutId; th
           frameloop="always"
           gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.15 }}
         >
-          <KeyboardSceneInner layoutId={layoutId} themeId={themeId} pressedRef={pressedRef} />
+          <Suspense fallback={null}>
+            <KeyboardSceneInner layoutId={layoutId} themeId={themeId} pressedRef={pressedRef} />
+          </Suspense>
         </Canvas>
       </div>
     )

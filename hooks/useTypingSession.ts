@@ -216,9 +216,12 @@ export function useTypingSession(
     const now = performance.now()
     let elapsed = s.endTime ? s.endTime - s.startTime : now - s.startTime
 
+    const currentMode = useAppStore.getState().typingMode
+    const currentTimeLimit = useAppStore.getState().timeLimit
+
     // dynamic seconds deadline threshold check (only in time mode)
-    const thresholdMs = timeLimit * 1000
-    if (typingMode === "time" && s.state === "typing" && elapsed >= thresholdMs) {
+    const thresholdMs = currentTimeLimit * 1000
+    if (currentMode === "time" && s.state === "typing" && elapsed >= thresholdMs) {
       s.state = "finished"
       s.endTime = s.startTime + thresholdMs
       elapsed = thresholdMs
@@ -322,7 +325,6 @@ export function useTypingSession(
 
         if (useAppStore.getState().soundEnabled) {
           const pan = getPanValue(code)
-          console.warn("[typing-session] handleKeyDown: key =", key, "code =", code, "pan =", pan)
           audioEngine.playDown(code, pan)
         }
 

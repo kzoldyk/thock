@@ -65,7 +65,23 @@ export async function POST(request: Request) {
 
     const payload = await verifyJwt(token, JWT_SECRET);
     if (!payload) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const response = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      response.headers.set(
+        "Set-Cookie",
+        "thock_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+      );
+      return response;
+    }
+
+    // Verify user exists in database
+    const users = await db.query("SELECT id FROM users WHERE id = ?", [payload.id]);
+    if (!users || users.length === 0) {
+      const response = NextResponse.json({ error: "User session invalid. Please sign in again." }, { status: 401 });
+      response.headers.set(
+        "Set-Cookie",
+        "thock_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+      );
+      return response;
     }
 
     const { preferences } = await request.json();
