@@ -802,6 +802,7 @@ export default function Home() {
       <div 
         className="absolute inset-0 pointer-events-none transition-colors duration-1000 z-[0]"
         style={{ backgroundColor: wpmTint }}
+        suppressHydrationWarning
       />
 
       {/* Drift particles behind content */}
