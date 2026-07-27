@@ -313,6 +313,17 @@ export function useTypingSession(
       e.preventDefault()
 
       if (key.length === 1 || key === "Backspace" || code === "Space") {
+        // Automatically blur any active button/link/select to return focus to the page for typing
+        if (
+          typeof document !== "undefined" &&
+          document.activeElement &&
+          document.activeElement !== document.body &&
+          document.activeElement.tagName !== "INPUT" &&
+          document.activeElement.tagName !== "TEXTAREA"
+        ) {
+          (document.activeElement as HTMLElement).blur()
+        }
+
         if (s.state === "idle") {
           s.startTime = performance.now()
           timerRef.current = setInterval(computeLatestStats, 100)

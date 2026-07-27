@@ -737,8 +737,28 @@ export default function Home() {
         setSettingsOpen(!useAppStore.getState().settingsOpen)
       }
     }
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (
+        !target.closest("button") &&
+        !target.closest("input") &&
+        !target.closest("textarea") &&
+        !target.closest("select") &&
+        !target.closest("a") &&
+        !target.isContentEditable
+      ) {
+        if (typeof document !== "undefined" && document.activeElement) {
+          (document.activeElement as HTMLElement).blur()
+        }
+      }
+    }
     window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
+    window.addEventListener("click", handleDocumentClick)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("click", handleDocumentClick)
+    }
   }, [setSettingsOpen])
 
   const toggleDarkMode = () => {

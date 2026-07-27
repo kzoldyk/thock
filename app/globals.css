@@ -130,13 +130,36 @@ body {
 .flow-transition {
   transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1),
               filter 1.5s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+              transform 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+              max-height 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+              margin 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+header.flow-transition {
+  max-height: 120px;
+}
+
+div.flow-transition {
+  max-height: 100px;
+}
+
+footer.flow-transition {
+  max-height: 120px;
 }
 
 .flow-fade-out {
   opacity: 0;
   filter: blur(10px);
   pointer-events: none;
+  max-height: 0px !important;
+  margin-top: 0px !important;
+  margin-bottom: 0px !important;
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+  border-top-width: 0px !important;
+  border-bottom-width: 0px !important;
+  overflow: hidden;
 }
 
 /* Effect Modes (Easter Eggs) */
