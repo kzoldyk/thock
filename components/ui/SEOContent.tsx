@@ -318,7 +318,7 @@ export function SEOContent({ page }: { page: string }) {
   };
 
   return (
-    <section className="w-full max-w-4xl mx-auto px-6 py-12 md:py-20 border-t border-[var(--chrome-border)] mt-12 space-y-12 text-left relative z-10 select-text">
+    <section className="sr-only">
       {/* JSON-LD Schemas */}
       <script
         type="application/ld+json"

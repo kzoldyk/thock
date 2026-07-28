@@ -839,7 +839,7 @@ export default function Home() {
       <div className={cn(forceMobileTyping ? "flex" : "hidden md:flex", "flex-col flex-1 justify-between relative z-10")}>
         {/* Header Navigation */}
         <header className={cn(
-          "flex items-center justify-between px-8 py-5 relative z-10 select-none flow-transition",
+          "flex items-center justify-between px-8 py-4 relative z-10 select-none flow-transition",
           (flowMode || sessionState === "typing") && "flow-fade-out"
         )}>
           {/* Left: Minimal Logo */}
@@ -984,7 +984,7 @@ export default function Home() {
               )}
 
               {/* Typing Paragraph Focus Box */}
-              <div className="flex-1 flex flex-col justify-center min-h-[220px]">
+              <div className="flex-1 flex flex-col justify-center min-h-[160px]">
                 {sessionState === "finished" ? (
                   <div className="flex justify-center px-8">
                     <ResultCard stats={stats} onRestart={restart} history={getHistory()} currentUser={currentUser} onOpenAuth={() => setAuthOpen(true)} />

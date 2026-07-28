@@ -127,7 +127,7 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
   return (
     <div 
       ref={containerRef}
-      className="w-full max-w-[900px] mx-auto px-12 select-none my-12 overflow-hidden relative"
+      className="w-full max-w-[900px] mx-auto px-12 select-none my-6 overflow-hidden relative"
       style={{
         maskImage: "linear-gradient(to right, transparent, white 15%, white 85%, transparent)",
         WebkitMaskImage: "linear-gradient(to right, transparent, white 15%, white 85%, transparent)",

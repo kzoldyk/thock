@@ -65,7 +65,7 @@ export const StatsBar = memo(function StatsBar({ stats, sessionState }: Props) {
   const displayWpm = sessionState === "finished" ? stats.wpm : stats.liveWpm
 
   return (
-    <div className="w-full max-w-[900px] mx-auto px-8 my-6">
+    <div className="w-full max-w-[900px] mx-auto px-8 my-4">
       <div className="flex flex-wrap justify-between gap-3">
         <StatItem label="WPM" value={displayWpm} />
         <StatItem label="Acc" value={stats.accuracy} suffix="%" />

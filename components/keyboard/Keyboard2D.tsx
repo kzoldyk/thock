@@ -37,7 +37,7 @@ export const Keyboard2D = memo(function Keyboard2D({ layoutId, themeId, activeKe
   )
 
   return (
-    <div className="w-full overflow-x-auto py-4 px-2 select-none">
+    <div className="w-full overflow-x-auto py-2.5 px-2 select-none">
       <div 
         className="mx-auto p-4 rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.15)] transition-all duration-300 border-[4.5px]"
         style={{
