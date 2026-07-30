@@ -1,3 +1,53 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function generateMockDevices() {
+  const devices: any[] = [];
+  const countries = ["US", "IN", "GB", "CA", "DE", "FR", "JP", "AU", "BR", "SG", "NL"];
+  const browsers = ["Chrome", "Safari", "Firefox", "Edge", "Opera"];
+  const oss = ["Windows", "macOS", "Linux", "iOS", "Android"];
+  
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  
+  // Generate 85 devices
+  for (let i = 0; i < 85; i++) {
+    const country = countries[Math.floor(Math.random() * countries.length)];
+    const browser = browsers[Math.floor(Math.random() * browsers.length)];
+    const os = oss[Math.floor(Math.random() * oss.length)];
+    const deviceType = os === "iOS" || os === "Android" 
+      ? (Math.random() > 0.15 ? "mobile" : "tablet") 
+      : "desktop";
+      
+    const daysAgo = Math.random() * 30;
+    const created = now - daysAgo * dayMs;
+    const lastVisited = created + Math.random() * (now - created);
+    const visitCount = Math.floor(Math.random() * Math.min(25, Math.ceil(daysAgo * 0.8))) + 1;
+    
+    // Custom inline UUID
+    const deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    
+    const ip = `${Math.floor(Math.random() * 220) + 10}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+    const userAgent = `Mozilla/5.0 (${os === "Windows" ? "Windows NT 10.0; Win64; x64" : os === "macOS" ? "Macintosh; Intel Mac OS X 10_15_7" : os === "Linux" ? "X11; Linux x86_64" : os === "iOS" ? "iPhone; CPU iPhone OS 16_5 like Mac OS X" : "Linux; Android 13; K"}) AppleWebKit/537.36 (KHTML, like Gecko) ${browser}/114.0.0.0`;
+    
+    devices.push({
+      device_id: deviceId,
+      visit_count: visitCount,
+      last_visited_at: Math.floor(lastVisited),
+      created_at: Math.floor(created),
+      ip_address: ip,
+      user_agent: userAgent,
+      os,
+      browser,
+      device_type: deviceType,
+      country
+    });
+  }
+  
+  return devices;
+}
+
 export async function executeMockQuery(sql: string, params: any[] = []): Promise<any> {
   // Store mock data on globalThis to preserve it across hot-reloads in next dev
   const g = globalThis as any;
@@ -9,6 +59,9 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
   }
   if (!g.__thock_preferences) {
     g.__thock_preferences = [];
+  }
+  if (!g.__thock_unique_devices) {
+    g.__thock_unique_devices = generateMockDevices();
   }
 
   const sqlNormalized = sql.trim().replace(/\s+/g, " ");
@@ -145,6 +198,56 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
       g.__thock_preferences.push(newPref);
     }
     return [];
+  }
+
+  // 11. Select count of unique devices: SELECT COUNT(*) as count FROM unique_devices
+  if (sqlNormalized.includes("FROM unique_devices") && sqlNormalized.includes("COUNT(*)")) {
+    return [{ count: g.__thock_unique_devices.length }];
+  }
+
+  // 12. Insert unique device: INSERT INTO unique_devices ...
+  if (sqlNormalized.startsWith("INSERT INTO unique_devices")) {
+    const deviceId = params[0];
+    const now = params[1];
+    const ipAddress = params[3];
+    const rawUserAgent = params[4];
+    const osName = params[5];
+    const browserName = params[6];
+    const deviceType = params[7];
+    const country = params[8];
+
+    const index = g.__thock_unique_devices.findIndex((d: any) => d.device_id === deviceId);
+    if (index !== -1) {
+      g.__thock_unique_devices[index].visit_count += 1;
+      g.__thock_unique_devices[index].last_visited_at = now;
+      g.__thock_unique_devices[index].ip_address = ipAddress;
+      g.__thock_unique_devices[index].user_agent = rawUserAgent;
+      g.__thock_unique_devices[index].os = osName;
+      g.__thock_unique_devices[index].browser = browserName;
+      g.__thock_unique_devices[index].device_type = deviceType;
+      g.__thock_unique_devices[index].country = country;
+    } else {
+      g.__thock_unique_devices.push({
+        device_id: deviceId,
+        visit_count: 1,
+        last_visited_at: now,
+        created_at: now,
+        ip_address: ipAddress,
+        user_agent: rawUserAgent,
+        os: osName,
+        browser: browserName,
+        device_type: deviceType,
+        country: country
+      });
+    }
+    return [];
+  }
+
+  // 13. Select all unique devices: SELECT * FROM unique_devices
+  if (sqlNormalized.includes("FROM unique_devices")) {
+    const sorted = [...g.__thock_unique_devices];
+    sorted.sort((a: any, b: any) => b.last_visited_at - a.last_visited_at);
+    return sorted;
   }
 
   throw new Error(`Unsupported SQL query in mock database: ${sql}`);
