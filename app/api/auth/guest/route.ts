@@ -88,14 +88,20 @@ export async function POST(request: Request) {
       [userId, username, createdAt]
     );
 
-    // 3. Link user back to device row (best-effort — device may not exist yet)
+    // 3. Upsert device row with user_id — handles race condition where /api/visits
+    //    may not have inserted the device row yet when this endpoint runs.
+    //    ON CONFLICT: only set user_id if it's not already linked (never overwrite a real link).
+    const now = Date.now();
     try {
       await db.execute(
-        "UPDATE unique_devices SET user_id = ? WHERE device_id = ?",
-        [userId, deviceId]
+        `INSERT INTO unique_devices (device_id, visit_count, last_visited_at, created_at, user_id)
+         VALUES (?, 1, ?, ?, ?)
+         ON CONFLICT(device_id) DO UPDATE SET
+           user_id = CASE WHEN unique_devices.user_id IS NULL THEN excluded.user_id ELSE unique_devices.user_id END`,
+        [deviceId, now, now, userId]
       );
     } catch (_) {
-      // Non-fatal — will be linked on next /api/visits call
+      // Non-fatal
     }
 
     return issueSession(userId, username);
