@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     const createdAt = Date.now();
 
     await db.execute(
-      "INSERT INTO users (id, username, password_hash, salt, is_guest, created_at) VALUES (?, ?, NULL, NULL, 1, ?)",
+      "INSERT INTO users (id, username, password_hash, salt, is_guest, created_at) VALUES (?, ?, '__guest__', '__guest__', 1, ?)",
       [userId, username, createdAt]
     );
 
