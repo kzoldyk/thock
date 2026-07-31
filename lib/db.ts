@@ -123,8 +123,9 @@ async function ensureDbInitialized(db: DatabaseClient) {
         sql: `CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
           username TEXT UNIQUE NOT NULL,
-          password_hash TEXT NOT NULL,
-          salt TEXT NOT NULL,
+          password_hash TEXT,
+          salt TEXT,
+          is_guest INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL
         )`
       },
@@ -168,11 +169,21 @@ async function ensureDbInitialized(db: DatabaseClient) {
       }
     ]);
     
-    // Auto-migrate new columns for existing table
-    const columnsToAdd = ['ip_address', 'user_agent', 'os', 'browser', 'device_type', 'country'];
-    for (const col of columnsToAdd) {
+    // Auto-migrate new columns for existing tables
+    const deviceColumnsToAdd = ['ip_address', 'user_agent', 'os', 'browser', 'device_type', 'country', 'user_id'];
+    for (const col of deviceColumnsToAdd) {
       try {
         await db.execute(`ALTER TABLE unique_devices ADD COLUMN ${col} TEXT`);
+      } catch (err) {
+        // Ignore errors if column already exists
+      }
+    }
+
+    // Allow password_hash and salt to be nullable (for guest users)
+    const userColumnsToAdd = ['is_guest'];
+    for (const col of userColumnsToAdd) {
+      try {
+        await db.execute(`ALTER TABLE users ADD COLUMN ${col} INTEGER NOT NULL DEFAULT 0`);
       } catch (err) {
         // Ignore errors if column already exists
       }

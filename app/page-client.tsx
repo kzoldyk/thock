@@ -560,14 +560,40 @@ export default function Home() {
   }, [forceMobileTyping])
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.user) {
-          setCurrentUser(data.user)
+    const initSession = async () => {
+      try {
+        // 1. Try existing session first
+        const meRes = await fetch("/api/auth/me")
+        const meData = await meRes.json()
+        if (meData && meData.user) {
+          setCurrentUser(meData.user)
+          return
         }
-      })
-      .catch((err) => console.error("Error loading user session:", err))
+
+        // 2. No active session — silently create/restore guest user from device fingerprint
+        let deviceId = localStorage.getItem("thock_device_id")
+        if (!deviceId) {
+          deviceId = crypto.randomUUID()
+          localStorage.setItem("thock_device_id", deviceId)
+        }
+
+        const guestRes = await fetch("/api/auth/guest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceId }),
+        })
+        if (guestRes.ok) {
+          const guestData = await guestRes.json()
+          if (guestData && guestData.user) {
+            setCurrentUser(guestData.user)
+          }
+        }
+      } catch (err) {
+        console.error("Error initializing user session:", err)
+      }
+    }
+
+    initSession()
   }, [])
 
   // Sync preferences from/to cloud on login/registration
