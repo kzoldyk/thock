@@ -21,6 +21,7 @@ import type { FontFamily } from "@/types"
 import { FeedbackModal } from "@/components/ui/FeedbackModal"
 import { AuthModal } from "@/components/ui/AuthModal"
 import { LeaderboardView } from "@/components/ui/LeaderboardView"
+import { UserAvatar } from "@/components/ui/UserAvatar"
 
 function SegmentedControl<T extends string>({
   options,
@@ -965,9 +966,7 @@ export default function Home() {
             {/* Profile Avatar / Authentication Trigger */}
             {currentUser ? (
               <div className="flex items-center gap-2 group relative">
-                <div className="w-8 h-8 rounded-full border border-[var(--chrome-border)] flex items-center justify-center text-[10px] font-bold bg-gradient-to-tr from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 text-[var(--foreground)] shadow-sm select-none cursor-default">
-                  {currentUser.username.substring(0, 2).toUpperCase()}
-                </div>
+                <UserAvatar username={currentUser.username} size="md" />
                 <button
                   onClick={async () => {
                     const res = await fetch("/api/auth/logout", { method: "POST" })

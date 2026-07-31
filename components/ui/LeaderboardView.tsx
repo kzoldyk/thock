@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { UserAvatar } from "@/components/ui/UserAvatar"
 
 interface LeaderboardScore {
   id: string
@@ -245,15 +246,18 @@ export function LeaderboardView({ currentUser, onOpenAuth, fontClass }: Leaderbo
                       )}
                     >
                       <td className="py-4 px-4 font-medium">{getRankBadge(rank)}</td>
-                      <td className="py-4 px-4 flex items-center gap-2">
-                        <span className="text-[var(--foreground)] truncate max-w-[120px] sm:max-w-[200px]">
-                          {score.username}
-                        </span>
-                        {isSelf && (
-                          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--foreground)] text-[var(--background)] font-bold">
-                            You
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <UserAvatar username={score.username} size="sm" />
+                          <span className="text-[var(--foreground)] truncate max-w-[100px] sm:max-w-[180px]">
+                            {score.username}
                           </span>
-                        )}
+                          {isSelf && (
+                            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--foreground)] text-[var(--background)] font-bold">
+                              You
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-4 px-4 text-right font-bold text-[var(--foreground)] font-mono">
                         {score.wpm.toFixed(1)}
