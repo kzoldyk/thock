@@ -706,6 +706,7 @@ export default function Home() {
   const volume = useAppStore((s) => s.volume)
   const reverb = useAppStore((s) => s.reverb)
   const switchPackId = useAppStore((s) => s.switchPackId)
+  const setSwitchPackId = useAppStore((s) => s.setSwitchPackId)
 
   useEffect(() => {
     let disposed = false
@@ -932,8 +933,25 @@ export default function Home() {
             })}
           </nav>
 
-          {/* Right: profile + settings + toggles */}
+          {/* Right: profile + settings + sound voice dropdown + toggles */}
           <div className="flex items-center gap-2">
+            {/* Quick Switch Sound Voice Selector */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] hover:bg-[var(--chrome-surface)] transition-all duration-300 button-lift">
+              <span className="text-xs">🔊</span>
+              <select
+                value={switchPackId}
+                onChange={(e) => setSwitchPackId(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-[var(--foreground)] focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[170px] truncate"
+                title="Change Keyboard Sound Voice"
+              >
+                {switchProfiles.map((sw) => (
+                  <option key={sw.id} value={sw.packId} className="bg-[var(--background)] text-[var(--foreground)]">
+                    {sw.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
