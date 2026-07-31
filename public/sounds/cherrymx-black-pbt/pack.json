@@ -1,0 +1,30 @@
+{
+  "id": "cherrymx-black-pbt",
+  "name": "CherryMX Black - PBT keycaps",
+  "description": "Mechvibes CherryMX Black - PBT keycaps sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/cherrymx-black-pbt/down-01.wav",
+    "sounds/cherrymx-black-pbt/down-02.wav",
+    "sounds/cherrymx-black-pbt/down-03.wav",
+    "sounds/cherrymx-black-pbt/down-04.wav",
+    "sounds/cherrymx-black-pbt/down-05.wav",
+    "sounds/cherrymx-black-pbt/down-06.wav",
+    "sounds/cherrymx-black-pbt/down-07.wav",
+    "sounds/cherrymx-black-pbt/down-08.wav",
+    "sounds/cherrymx-black-pbt/down-09.wav",
+    "sounds/cherrymx-black-pbt/down-10.wav",
+    "sounds/cherrymx-black-pbt/down-11.wav",
+    "sounds/cherrymx-black-pbt/down-12.wav",
+    "sounds/cherrymx-black-pbt/down-13.wav",
+    "sounds/cherrymx-black-pbt/down-14.wav",
+    "sounds/cherrymx-black-pbt/down-15.wav",
+    "sounds/cherrymx-black-pbt/down-16.wav"
+  ],
+  "up": [],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

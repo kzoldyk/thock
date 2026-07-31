@@ -1,8 +1,116 @@
 [
   {
     "id": "default",
-    "name": "Studio Default",
+    "name": "Cherry MX Blue (Default)",
     "description": "Processed from a single mechanical keyboard recording into distinct key-down and key-up samples.",
     "path": "/sounds/default/pack.json"
+  },
+  {
+    "id": "cherrymx-black-abs",
+    "name": "CherryMX Black - ABS keycaps",
+    "description": "Studio switch sound pack.",
+    "path": "/sounds/cherrymx-black-abs/pack.json"
+  },
+  {
+    "id": "cherrymx-black-pbt",
+    "name": "CherryMX Black - PBT keycaps",
+    "description": "Studio CherryMX Black - PBT keycaps sound pack.",
+    "path": "/sounds/cherrymx-black-pbt/pack.json"
+  },
+  {
+    "id": "cherrymx-blue-abs",
+    "name": "CherryMX Blue - ABS keycaps",
+    "description": "Studio CherryMX Blue - ABS keycaps sound pack.",
+    "path": "/sounds/cherrymx-blue-abs/pack.json"
+  },
+  {
+    "id": "cherrymx-blue-pbt",
+    "name": "CherryMX Blue - PBT keycaps",
+    "description": "Studio CherryMX Blue - PBT keycaps sound pack.",
+    "path": "/sounds/cherrymx-blue-pbt/pack.json"
+  },
+  {
+    "id": "cherrymx-brown-abs",
+    "name": "CherryMX Brown - ABS keycaps",
+    "description": "Studio CherryMX Brown - ABS keycaps sound pack.",
+    "path": "/sounds/cherrymx-brown-abs/pack.json"
+  },
+  {
+    "id": "cherrymx-brown-pbt",
+    "name": "CherryMX Brown - PBT keycaps",
+    "description": "Studio CherryMX Brown - PBT keycaps sound pack.",
+    "path": "/sounds/cherrymx-brown-pbt/pack.json"
+  },
+  {
+    "id": "cherrymx-red-abs",
+    "name": "CherryMX Red - ABS keycaps",
+    "description": "Studio CherryMX Red - ABS keycaps sound pack.",
+    "path": "/sounds/cherrymx-red-abs/pack.json"
+  },
+  {
+    "id": "cherrymx-red-pbt",
+    "name": "CherryMX Red - PBT keycaps",
+    "description": "Studio CherryMX Red - PBT keycaps sound pack.",
+    "path": "/sounds/cherrymx-red-pbt/pack.json"
+  },
+  {
+    "id": "cream-travel",
+    "name": "Full Creamy Goodness",
+    "description": "Studio Full Creamy Goodness sound pack.",
+    "path": "/sounds/cream-travel/pack.json"
+  },
+  {
+    "id": "eg-crystal-purple",
+    "name": "EG Crystal Purple",
+    "description": "Studio EG Crystal Purple sound pack.",
+    "path": "/sounds/eg-crystal-purple/pack.json"
+  },
+  {
+    "id": "eg-oreo",
+    "name": "EG Oreo",
+    "description": "Studio EG Oreo sound pack.",
+    "path": "/sounds/eg-oreo/pack.json"
+  },
+  {
+    "id": "holy-pandas",
+    "name": "pandas",
+    "description": "Studio pandas sound pack.",
+    "path": "/sounds/holy-pandas/pack.json"
+  },
+  {
+    "id": "mxblack-travel",
+    "name": "MX Black - Full Travel",
+    "description": "Studio MX Black - Full Travel sound pack.",
+    "path": "/sounds/mxblack-travel/pack.json"
+  },
+  {
+    "id": "mxblue-travel",
+    "name": "MX Blue - Full Travel",
+    "description": "Studio MX Blue - Full Travel sound pack.",
+    "path": "/sounds/mxblue-travel/pack.json"
+  },
+  {
+    "id": "mxbrown-travel",
+    "name": "MX Brown - Full Travel",
+    "description": "Studio MX Brown - Full Travel sound pack.",
+    "path": "/sounds/mxbrown-travel/pack.json"
+  },
+  {
+    "id": "nk-cream",
+    "name": "NK Cream (original by Ryan)",
+    "description": "Studio NK Cream (original by Ryan) sound pack.",
+    "path": "/sounds/nk-cream/pack.json"
+  },
+  {
+    "id": "topre-purple-hybrid-pbt",
+    "name": "Topre Purple Hybrid - PBT keycaps",
+    "description": "Studio Topre Purple Hybrid - PBT keycaps sound pack.",
+    "path": "/sounds/topre-purple-hybrid-pbt/pack.json"
+  },
+  {
+    "id": "turquoise",
+    "name": "Turquoise (Full Travel)",
+    "description": "Studio Turquoise (Full Travel) sound pack.",
+    "path": "/sounds/turquoise/pack.json"
   }
 ]

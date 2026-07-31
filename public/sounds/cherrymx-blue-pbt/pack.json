@@ -1,0 +1,30 @@
+{
+  "id": "cherrymx-blue-pbt",
+  "name": "CherryMX Blue - PBT keycaps",
+  "description": "Mechvibes CherryMX Blue - PBT keycaps sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/cherrymx-blue-pbt/down-01.wav",
+    "sounds/cherrymx-blue-pbt/down-02.wav",
+    "sounds/cherrymx-blue-pbt/down-03.wav",
+    "sounds/cherrymx-blue-pbt/down-04.wav",
+    "sounds/cherrymx-blue-pbt/down-05.wav",
+    "sounds/cherrymx-blue-pbt/down-06.wav",
+    "sounds/cherrymx-blue-pbt/down-07.wav",
+    "sounds/cherrymx-blue-pbt/down-08.wav",
+    "sounds/cherrymx-blue-pbt/down-09.wav",
+    "sounds/cherrymx-blue-pbt/down-10.wav",
+    "sounds/cherrymx-blue-pbt/down-11.wav",
+    "sounds/cherrymx-blue-pbt/down-12.wav",
+    "sounds/cherrymx-blue-pbt/down-13.wav",
+    "sounds/cherrymx-blue-pbt/down-14.wav",
+    "sounds/cherrymx-blue-pbt/down-15.wav",
+    "sounds/cherrymx-blue-pbt/down-16.wav"
+  ],
+  "up": [],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

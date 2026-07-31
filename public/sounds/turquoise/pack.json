@@ -1,0 +1,27 @@
+{
+  "id": "turquoise",
+  "name": "Turquoise (Full Travel)",
+  "description": "Mechvibes Turquoise (Full Travel) sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/turquoise/down-01.wav",
+    "sounds/turquoise/down-02.wav",
+    "sounds/turquoise/down-03.wav",
+    "sounds/turquoise/down-04.wav",
+    "sounds/turquoise/down-05.wav",
+    "sounds/turquoise/down-06.wav",
+    "sounds/turquoise/down-07.wav",
+    "sounds/turquoise/down-08.wav"
+  ],
+  "up": [
+    "sounds/turquoise/up-01.wav",
+    "sounds/turquoise/up-02.wav",
+    "sounds/turquoise/up-03.wav",
+    "sounds/turquoise/up-04.wav"
+  ],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

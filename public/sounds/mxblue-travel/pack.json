@@ -1,0 +1,21 @@
+{
+  "id": "mxblue-travel",
+  "name": "MX Blue - Full Travel",
+  "description": "Mechvibes MX Blue - Full Travel sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/mxblue-travel/down-01.wav",
+    "sounds/mxblue-travel/down-02.wav",
+    "sounds/mxblue-travel/down-03.wav",
+    "sounds/mxblue-travel/down-04.wav",
+    "sounds/mxblue-travel/down-05.wav"
+  ],
+  "up": [
+    "sounds/mxblue-travel/up-01.wav"
+  ],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

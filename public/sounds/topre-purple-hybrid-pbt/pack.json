@@ -1,0 +1,30 @@
+{
+  "id": "topre-purple-hybrid-pbt",
+  "name": "Topre Purple Hybrid - PBT keycaps",
+  "description": "Mechvibes Topre Purple Hybrid - PBT keycaps sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/topre-purple-hybrid-pbt/down-01.wav",
+    "sounds/topre-purple-hybrid-pbt/down-02.wav",
+    "sounds/topre-purple-hybrid-pbt/down-03.wav",
+    "sounds/topre-purple-hybrid-pbt/down-04.wav",
+    "sounds/topre-purple-hybrid-pbt/down-05.wav",
+    "sounds/topre-purple-hybrid-pbt/down-06.wav",
+    "sounds/topre-purple-hybrid-pbt/down-07.wav",
+    "sounds/topre-purple-hybrid-pbt/down-08.wav",
+    "sounds/topre-purple-hybrid-pbt/down-09.wav",
+    "sounds/topre-purple-hybrid-pbt/down-10.wav",
+    "sounds/topre-purple-hybrid-pbt/down-11.wav",
+    "sounds/topre-purple-hybrid-pbt/down-12.wav",
+    "sounds/topre-purple-hybrid-pbt/down-13.wav",
+    "sounds/topre-purple-hybrid-pbt/down-14.wav",
+    "sounds/topre-purple-hybrid-pbt/down-15.wav",
+    "sounds/topre-purple-hybrid-pbt/down-16.wav"
+  ],
+  "up": [],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

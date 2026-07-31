@@ -1,0 +1,27 @@
+{
+  "id": "mxbrown-travel",
+  "name": "MX Brown - Full Travel",
+  "description": "Mechvibes MX Brown - Full Travel sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/mxbrown-travel/down-01.wav",
+    "sounds/mxbrown-travel/down-02.wav",
+    "sounds/mxbrown-travel/down-03.wav",
+    "sounds/mxbrown-travel/down-04.wav",
+    "sounds/mxbrown-travel/down-05.wav",
+    "sounds/mxbrown-travel/down-06.wav",
+    "sounds/mxbrown-travel/down-07.wav",
+    "sounds/mxbrown-travel/down-08.wav"
+  ],
+  "up": [
+    "sounds/mxbrown-travel/up-01.wav",
+    "sounds/mxbrown-travel/up-02.wav",
+    "sounds/mxbrown-travel/up-03.wav",
+    "sounds/mxbrown-travel/up-04.wav"
+  ],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

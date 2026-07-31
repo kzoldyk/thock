@@ -1,0 +1,27 @@
+{
+  "id": "holy-pandas",
+  "name": "pandas",
+  "description": "Mechvibes pandas sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/holy-pandas/down-01.wav",
+    "sounds/holy-pandas/down-02.wav",
+    "sounds/holy-pandas/down-03.wav",
+    "sounds/holy-pandas/down-04.wav",
+    "sounds/holy-pandas/down-05.wav",
+    "sounds/holy-pandas/down-06.wav",
+    "sounds/holy-pandas/down-07.wav",
+    "sounds/holy-pandas/down-08.wav"
+  ],
+  "up": [
+    "sounds/holy-pandas/up-01.wav",
+    "sounds/holy-pandas/up-02.wav",
+    "sounds/holy-pandas/up-03.wav",
+    "sounds/holy-pandas/up-04.wav"
+  ],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

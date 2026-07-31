@@ -1,0 +1,27 @@
+{
+  "id": "cream-travel",
+  "name": "Full Creamy Goodness",
+  "description": "Mechvibes Full Creamy Goodness sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/cream-travel/down-01.wav",
+    "sounds/cream-travel/down-02.wav",
+    "sounds/cream-travel/down-03.wav",
+    "sounds/cream-travel/down-04.wav",
+    "sounds/cream-travel/down-05.wav",
+    "sounds/cream-travel/down-06.wav",
+    "sounds/cream-travel/down-07.wav",
+    "sounds/cream-travel/down-08.wav"
+  ],
+  "up": [
+    "sounds/cream-travel/up-01.wav",
+    "sounds/cream-travel/up-02.wav",
+    "sounds/cream-travel/up-03.wav",
+    "sounds/cream-travel/up-04.wav"
+  ],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

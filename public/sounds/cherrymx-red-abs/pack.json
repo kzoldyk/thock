@@ -1,0 +1,30 @@
+{
+  "id": "cherrymx-red-abs",
+  "name": "CherryMX Red - ABS keycaps",
+  "description": "Mechvibes CherryMX Red - ABS keycaps sound pack.",
+  "version": "1.0.0",
+  "switchType": "mechanical",
+  "down": [
+    "sounds/cherrymx-red-abs/down-01.wav",
+    "sounds/cherrymx-red-abs/down-02.wav",
+    "sounds/cherrymx-red-abs/down-03.wav",
+    "sounds/cherrymx-red-abs/down-04.wav",
+    "sounds/cherrymx-red-abs/down-05.wav",
+    "sounds/cherrymx-red-abs/down-06.wav",
+    "sounds/cherrymx-red-abs/down-07.wav",
+    "sounds/cherrymx-red-abs/down-08.wav",
+    "sounds/cherrymx-red-abs/down-09.wav",
+    "sounds/cherrymx-red-abs/down-10.wav",
+    "sounds/cherrymx-red-abs/down-11.wav",
+    "sounds/cherrymx-red-abs/down-12.wav",
+    "sounds/cherrymx-red-abs/down-13.wav",
+    "sounds/cherrymx-red-abs/down-14.wav",
+    "sounds/cherrymx-red-abs/down-15.wav",
+    "sounds/cherrymx-red-abs/down-16.wav"
+  ],
+  "up": [],
+  "options": {
+    "pitchVariation": 0.04,
+    "releaseTone": "bright"
+  }
+}

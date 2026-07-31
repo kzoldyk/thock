@@ -22,6 +22,7 @@ import { FeedbackModal } from "@/components/ui/FeedbackModal"
 import { AuthModal } from "@/components/ui/AuthModal"
 import { LeaderboardView } from "@/components/ui/LeaderboardView"
 import { UserAvatar } from "@/components/ui/UserAvatar"
+import { switchProfiles } from "@/lib/switches"
 
 function SegmentedControl<T extends string>({
   options,
@@ -329,7 +330,11 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
                     onChange={(e) => setSwitchPackId(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
                   >
-                    <option value="default" className="bg-[var(--background)] text-[var(--foreground)]">Cherry Blue Switches</option>
+                    {switchProfiles.map((sw) => (
+                      <option key={sw.id} value={sw.packId} className="bg-[var(--background)] text-[var(--foreground)]">
+                        {sw.name}
+                      </option>
+                    ))}
                   </select>
                 </Section>
 
@@ -700,6 +705,7 @@ export default function Home() {
 
   const volume = useAppStore((s) => s.volume)
   const reverb = useAppStore((s) => s.reverb)
+  const switchPackId = useAppStore((s) => s.switchPackId)
 
   useEffect(() => {
     let disposed = false
@@ -707,13 +713,19 @@ export default function Home() {
       if (disposed) return
       audioEngine.setVolume(useAppStore.getState().volume)
       audioEngine.setReverb(useAppStore.getState().reverb)
-      audioEngine.loadPack("default")
+      audioEngine.loadPack(useAppStore.getState().switchPackId || "default")
     })
     return () => {
       disposed = true
       audioEngine.dispose()
     }
   }, [])
+
+  useEffect(() => {
+    if (audioEngine.isReady) {
+      audioEngine.loadPack(switchPackId || "default")
+    }
+  }, [switchPackId])
 
   useEffect(() => {
     const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
