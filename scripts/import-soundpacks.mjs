@@ -206,6 +206,9 @@ function main() {
 
   fs.writeFileSync(path.resolve("public/sounds/sounds.json"), JSON.stringify(manifest, null, 2));
   console.log(`Wrote ${manifest.length} sound packs to public/sounds/sounds.json!`);
+
+  console.log("Peak-normalizing imported sound packs...");
+  execSync("node scripts/normalize-sounds.mjs", { stdio: "inherit" });
 }
 
 main();
