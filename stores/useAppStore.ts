@@ -31,6 +31,8 @@ interface AppStore {
   setFontFamily: (font: FontFamily) => void
   typingMode: "time" | "words" | "quotes" | "code"
   setTypingMode: (mode: "time" | "words" | "quotes" | "code") => void
+  paragraphMode: boolean
+  setParagraphMode: (v: boolean) => void
   timeLimit: number
   setTimeLimit: (t: number) => void
   complexWords: boolean
@@ -96,6 +98,8 @@ export const useAppStore = create<AppStore>()(
       setKeyboardType: (v) => set({ keyboardType: v }),
       flowMode: false,
       setFlowMode: (v) => set({ flowMode: v }),
+      paragraphMode: false,
+      setParagraphMode: (v) => set({ paragraphMode: v }),
       activeEffect: null,
       setActiveEffect: (v) => set({ activeEffect: v }),
       explosions: [],
@@ -137,6 +141,7 @@ export const useAppStore = create<AppStore>()(
         soundEnabled: state.soundEnabled,
         keyboardType: state.keyboardType,
         flowMode: state.flowMode,
+        paragraphMode: state.paragraphMode,
         dampenerId: state.dampenerId,
       }),
     }

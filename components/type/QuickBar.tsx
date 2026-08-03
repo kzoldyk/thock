@@ -11,6 +11,8 @@ export const QuickBar = memo(function QuickBar() {
   const setTimeLimit = useAppStore((s) => s.setTimeLimit)
   const complexWords = useAppStore((s) => s.complexWords)
   const setComplexWords = useAppStore((s) => s.setComplexWords)
+  const paragraphMode = useAppStore((s) => s.paragraphMode)
+  const setParagraphMode = useAppStore((s) => s.setParagraphMode)
 
   const modes: { id: "time" | "words" | "quotes" | "code"; label: string; icon: string }[] = [
     { id: "time", label: "time", icon: "⏱️" },
@@ -86,6 +88,24 @@ export const QuickBar = memo(function QuickBar() {
           <span className="hidden sm:inline">Punctuation</span>
         </button>
       )}
+
+      {/* Layout Divider */}
+      <div className="w-[1px] h-4 bg-[var(--chrome-border)] mx-1 hidden sm:block" />
+
+      {/* Paragraph Mode Toggle */}
+      <button
+        onClick={() => setParagraphMode(!paragraphMode)}
+        className={cn(
+          "px-2.5 py-1 rounded-xl transition-all duration-200 cursor-pointer text-[11px] font-semibold flex items-center gap-1.5",
+          paragraphMode
+            ? "bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 font-bold"
+            : "text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--chrome-surface)]"
+        )}
+        title="Toggle Paragraph Mode"
+      >
+        <span>📖</span>
+        <span className="hidden sm:inline">Paragraph</span>
+      </button>
     </div>
   )
 })

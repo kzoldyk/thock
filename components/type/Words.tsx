@@ -16,18 +16,37 @@ interface WordsDisplayProps {
 
 export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex, currentCharIndex, sessionState = "idle" }: WordsDisplayProps) {
   const fontFamily = useAppStore((s) => s.fontFamily)
+  const paragraphMode = useAppStore((s) => s.paragraphMode)
+  const showKeyboard = useAppStore((s) => s.showKeyboard)
   const containerRef = useRef<HTMLDivElement>(null)
   const activeWordRef = useRef<HTMLSpanElement>(null)
   const activeCharRef = useRef<HTMLSpanElement>(null)
   const scrollingRowRef = useRef<HTMLDivElement>(null)
   const [translateX, setTranslateX] = useState(0)
+  const [translateY, setTranslateY] = useState(0)
 
   const [caretPos, setCaretPos] = useState({ left: 0, top: 0, height: 36 })
 
   const fontClass = useMemo(() => getFontClass(fontFamily), [fontFamily])
 
-  // Horizontal translation math on active word shift
+  // Horizontal or vertical translation math on active word shift
   useEffect(() => {
+    if (paragraphMode) {
+      setTranslateX(0)
+      if (activeWordRef.current && containerRef.current) {
+        const activeEl = activeWordRef.current
+        const activeTop = activeEl.offsetTop
+        // Keep active line at the second line position (approx 65px vertical offset)
+        if (activeTop > 80) {
+          setTranslateY(-activeTop + 65)
+        } else {
+          setTranslateY(0)
+        }
+      }
+      return
+    }
+
+    setTranslateY(0)
     if (activeWordRef.current && containerRef.current) {
       const activeEl = activeWordRef.current
       const containerEl = containerRef.current
@@ -39,7 +58,7 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
       const targetX = -activeLeft + (containerWidth * 0.25)
       setTranslateX(targetX)
     }
-  }, [currentWordIndex])
+  }, [currentWordIndex, paragraphMode])
 
   // Measure active character coordinates relative to the scrolling row
   useEffect(() => {
@@ -111,10 +130,11 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
           key={wi}
           ref={isCurrentWord ? activeWordRef : undefined}
           className={cn(
-            "inline-flex tracking-tight transition-all duration-300 mr-6 py-1.5 whitespace-nowrap shrink-0 relative",
-            wi < currentWordIndex && "opacity-25",
-            wi === currentWordIndex && "opacity-100 font-semibold scale-[1.01] origin-left",
-            wi > currentWordIndex && "opacity-[0.12]",
+            "inline-flex tracking-tight transition-all duration-300 mr-6 py-1.5 relative",
+            !paragraphMode && "whitespace-nowrap shrink-0",
+            paragraphMode 
+              ? (wi < currentWordIndex ? "opacity-35" : wi === currentWordIndex ? "opacity-100 font-semibold scale-[1.01] origin-left" : "opacity-[0.6]")
+              : (wi < currentWordIndex ? "opacity-25" : wi === currentWordIndex ? "opacity-100 font-semibold scale-[1.01] origin-left" : "opacity-[0.12]")
           )}
         >
           {chars}
@@ -127,8 +147,15 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
   return (
     <div 
       ref={containerRef}
-      className="w-full max-w-[900px] mx-auto px-12 select-none my-6 overflow-hidden relative"
-      style={{
+      className={cn(
+        "w-full max-w-[900px] mx-auto px-12 select-none overflow-hidden relative transition-all duration-300",
+        showKeyboard ? "my-2 sm:my-3" : "my-6 sm:my-8",
+        paragraphMode ? "h-[195px]" : "h-auto"
+      )}
+      style={paragraphMode ? {
+        maskImage: "linear-gradient(to bottom, transparent, white 20%, white 80%, transparent)",
+        WebkitMaskImage: "linear-gradient(to bottom, transparent, white 20%, white 80%, transparent)",
+      } : {
         maskImage: "linear-gradient(to right, transparent, white 15%, white 85%, transparent)",
         WebkitMaskImage: "linear-gradient(to right, transparent, white 15%, white 85%, transparent)",
       }}
@@ -136,11 +163,12 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
       <div 
         ref={scrollingRowRef}
         className={cn(
-          "flex flex-row flex-nowrap items-center text-3xl sm:text-4xl leading-relaxed tracking-tight text-[var(--foreground)] transition-transform duration-300 ease-out whitespace-nowrap relative",
+          "flex items-center text-3xl sm:text-4xl leading-relaxed tracking-tight text-[var(--foreground)] transition-transform duration-300 ease-out relative",
+          paragraphMode ? "flex-row flex-wrap justify-start" : "flex-row flex-nowrap whitespace-nowrap",
           fontClass
         )}
         style={{
-          transform: `translateX(${translateX}px)`,
+          transform: paragraphMode ? `translateY(${translateY}px)` : `translateX(${translateX}px)`,
         }}
       >
         {/* Floating Spring Caret */}

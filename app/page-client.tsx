@@ -1021,7 +1021,7 @@ export default function Home() {
         </header>
 
         {/* Main content grid */}
-        <div className="flex-1 flex flex-col justify-between py-4 relative z-10">
+        <div className={cn("flex-1 flex flex-col justify-between py-4 relative z-10", showKeyboard && "gap-3 sm:gap-4")}>
           {activeTab === "Practice" ? (
             <>
               {/* Quick Mode & Timer Toolbar */}
