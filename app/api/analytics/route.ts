@@ -184,21 +184,50 @@ export async function GET() {
         u.username, 
         u.is_guest, 
         u.created_at,
-        COALESCE(MAX(d.last_visited_at), u.created_at) as last_visited_at, 
-        COALESCE(SUM(d.visit_count), 1) as visit_count
+        MAX(d.last_visited_at) as last_visited_at, 
+        COALESCE(SUM(d.visit_count), 1) as visit_count,
+        d.ip_address,
+        d.os,
+        d.browser,
+        d.device_type,
+        d.country,
+        d.user_agent
       FROM users u
       LEFT JOIN unique_devices d ON u.id = d.user_id
       GROUP BY u.id, u.username, u.is_guest, u.created_at
     `);
 
-    const visitedUsers = (dbUsers || []).map((u) => ({
-      userId: u.user_id,
-      username: u.username,
-      isGuest: u.is_guest === 1,
-      createdAt: u.created_at,
-      lastVisitedAt: u.last_visited_at,
-      visitCount: u.visit_count,
-    }));
+    const visitedUsers = (dbUsers || []).map((u) => {
+      let anonymizedIp = "N/A";
+      if (u.ip_address) {
+        if (u.ip_address.includes(".")) {
+          const parts = u.ip_address.split(".");
+          if (parts.length === 4) {
+            anonymizedIp = `${parts[0]}.${parts[1]}.xxx.xxx`;
+          }
+        } else if (u.ip_address.includes(":")) {
+          const parts = u.ip_address.split(":");
+          if (parts.length > 2) {
+            anonymizedIp = `${parts[0]}:${parts[1]}:xxxx:xxxx::xxxx`;
+          }
+        }
+      }
+
+      return {
+        userId: u.user_id,
+        username: u.username,
+        isGuest: u.is_guest === 1,
+        createdAt: u.created_at,
+        lastVisitedAt: u.last_visited_at || u.created_at,
+        visitCount: u.visit_count,
+        ipAddress: anonymizedIp,
+        os: u.os || "Unknown",
+        browser: u.browser || "Unknown",
+        deviceType: u.device_type || "desktop",
+        country: u.country || "Unknown",
+        userAgent: u.user_agent || "N/A",
+      };
+    });
 
     return NextResponse.json({
       summary: {

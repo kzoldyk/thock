@@ -60,6 +60,12 @@ interface VisitedUser {
   createdAt: number;
   lastVisitedAt: number;
   visitCount: number;
+  ipAddress: string;
+  os: string;
+  browser: string;
+  deviceType: string;
+  country: string;
+  userAgent: string;
 }
 
 interface AnalyticsData {
@@ -1136,18 +1142,59 @@ export default function AnalyticsDashboard() {
 
                     <div className="border-t border-[var(--chrome-border)]/50 pt-3 mt-auto space-y-2 text-[11px]">
                       <div className="flex justify-between items-center text-[var(--muted)]">
+                        <span>IP Address</span>
+                        <span className="font-mono font-semibold text-[var(--accent)]">{user.ipAddress}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-[var(--muted)]">
+                        <span>Origin</span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-sm leading-none">{getFlagEmoji(user.country)}</span>
+                          <span className="font-semibold text-[var(--foreground)]">{user.country}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[var(--muted)]">
+                        <span>System</span>
+                        <span className="font-semibold text-[var(--foreground)] truncate max-w-[130px]" title={`${user.browser} on ${user.os}`}>
+                          {user.browser} <span className="text-[10px] text-[var(--muted)] font-normal">on {user.os}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[var(--muted)]">
+                        <span>Device</span>
+                        <span className="inline-flex items-center gap-1 bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] px-1.5 py-0.5 rounded-md text-[9px] capitalize text-[var(--foreground)] font-semibold">
+                          {user.deviceType === "mobile" ? (
+                            <Smartphone className="w-2.5 h-2.5 text-[var(--muted)]" />
+                          ) : user.deviceType === "tablet" ? (
+                            <Tablet className="w-2.5 h-2.5 text-[var(--muted)]" />
+                          ) : (
+                            <Monitor className="w-2.5 h-2.5 text-[var(--muted)]" />
+                          )}
+                          {user.deviceType}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[var(--muted)]">
                         <span>Total Visits</span>
                         <span className="font-mono font-bold text-[var(--foreground)]">{user.visitCount}</span>
                       </div>
+                      
                       <div className="flex justify-between items-center text-[var(--muted)]">
                         <span>Last Active</span>
                         <span className="font-semibold text-[var(--foreground)]">
                           {formatRelativeTime(user.lastVisitedAt)}
                         </span>
                       </div>
+
                       <div className="flex justify-between items-center text-[var(--muted)]">
                         <span>Joined</span>
                         <span className="text-[var(--foreground)]">{new Date(user.createdAt).toLocaleDateString()}</span>
+                      </div>
+
+                      <div className="text-[10px] text-[var(--muted)] mt-1.5 pt-1.5 border-t border-[var(--chrome-border)]/30 truncate" title={user.userAgent}>
+                        <span className="font-semibold text-[9px] block mb-0.5">User Agent:</span>
+                        {user.userAgent}
                       </div>
                     </div>
                   </div>

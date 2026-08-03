@@ -285,10 +285,14 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
   if (sqlNormalized.includes("FROM users u") && sqlNormalized.includes("unique_devices d")) {
     const joined = g.__thock_users.map((u: any) => {
       const userDevices = g.__thock_unique_devices.filter((d: any) => d.user_id === u.id);
+      
+      // Sort user devices by last visited time descending to find the latest
+      const sortedDevices = [...userDevices].sort((a: any, b: any) => b.last_visited_at - a.last_visited_at);
+      const latestDevice = sortedDevices[0] || null;
+      
       const visitCount = userDevices.reduce((sum: number, d: any) => sum + (d.visit_count || 1), 0);
-      const lastVisitedAt = userDevices.length > 0
-        ? Math.max(...userDevices.map((d: any) => d.last_visited_at))
-        : u.created_at;
+      const lastVisitedAt = latestDevice ? latestDevice.last_visited_at : u.created_at;
+      
       return {
         user_id: u.id,
         username: u.username,
@@ -296,6 +300,12 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
         created_at: u.created_at,
         last_visited_at: lastVisitedAt,
         visit_count: visitCount || 1,
+        ip_address: latestDevice ? latestDevice.ip_address : null,
+        os: latestDevice ? latestDevice.os : null,
+        browser: latestDevice ? latestDevice.browser : null,
+        device_type: latestDevice ? latestDevice.device_type : null,
+        country: latestDevice ? latestDevice.country : null,
+        user_agent: latestDevice ? latestDevice.user_agent : null,
       };
     });
     return joined;
