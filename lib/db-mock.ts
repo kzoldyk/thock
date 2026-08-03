@@ -51,17 +51,55 @@ function generateMockDevices() {
 export async function executeMockQuery(sql: string, params: any[] = []): Promise<any> {
   // Store mock data on globalThis to preserve it across hot-reloads in next dev
   const g = globalThis as any;
+  if (!g.__thock_unique_devices) {
+    g.__thock_unique_devices = generateMockDevices();
+  }
   if (!g.__thock_users) {
     g.__thock_users = [];
+    
+    // Generate corresponding users for our mock devices
+    g.__thock_unique_devices.forEach((d: any, idx: number) => {
+      const isGuest = Math.random() > 0.25 ? 1 : 0;
+      let username = "";
+      if (isGuest) {
+        const ADJECTIVES = [
+          "Swift", "Silent", "Neon", "Crimson", "Iron", "Cosmic", "Phantom", "Solar",
+          "Turbo", "Rogue", "Blazing", "Frost", "Storm", "Lunar", "Viper", "Stealth",
+          "Thunder", "Shadow", "Crystal", "Sonic", "Hyper", "Obsidian", "Prism", "Ember",
+          "Arctic", "Quantum", "Gilded", "Scarlet", "Midnight", "Titan"
+        ];
+        const NOUNS = [
+          "Falcon", "Panda", "Hawk", "Wolf", "Fox", "Lynx", "Cobra", "Raven",
+          "Tiger", "Eagle", "Puma", "Jaguar", "Viper", "Orca", "Badger", "Osprey",
+          "Ferret", "Gecko", "Manta", "Raptor", "Phoenix", "Drake", "Coyote", "Bison",
+          "Heron", "Marlin", "Condor", "Dingo", "Panther", "Ibis"
+        ];
+        const cleaned = d.device_id.replace(/-/g, "");
+        const a = parseInt(cleaned.substring(0, 4), 16) % ADJECTIVES.length;
+        const b = parseInt(cleaned.substring(4, 8), 16) % NOUNS.length;
+        username = `${ADJECTIVES[a]}${NOUNS[b]}`;
+      } else {
+        const names = ["AlphaTyper", "KeyClicker", "CyberClack", "TactileNinja", "LinearEnthusiast", "ThockLord", "ClickyPanda", "WpmSpeedster", "PandaSwitch", "KeycapCollector", "DeskMatMaster", "SpacebarLover", "CoiledCable", "LaserKeycaps", "HotSwapKing", "TypingWizard", "AestheticKeeb", "SilentGamer"];
+        username = names[idx % names.length] + (Math.floor(Math.random() * 900) + 100);
+      }
+      
+      const userId = `user_${d.device_id.substring(0, 8)}`;
+      d.user_id = userId;
+      g.__thock_users.push({
+        id: userId,
+        username,
+        is_guest: isGuest,
+        created_at: d.created_at,
+        password_hash: "mock_hash",
+        salt: "mock_salt"
+      });
+    });
   }
   if (!g.__thock_scores) {
     g.__thock_scores = [];
   }
   if (!g.__thock_preferences) {
     g.__thock_preferences = [];
-  }
-  if (!g.__thock_unique_devices) {
-    g.__thock_unique_devices = generateMockDevices();
   }
 
   const sqlNormalized = sql.trim().replace(/\s+/g, " ");
@@ -241,6 +279,26 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
       });
     }
     return [];
+  }
+
+  // 12.5 Select visited users: SELECT u.id as user_id, u.username, u.is_guest, u.created_at, ...
+  if (sqlNormalized.includes("FROM users u") && sqlNormalized.includes("unique_devices d")) {
+    const joined = g.__thock_users.map((u: any) => {
+      const userDevices = g.__thock_unique_devices.filter((d: any) => d.user_id === u.id);
+      const visitCount = userDevices.reduce((sum: number, d: any) => sum + (d.visit_count || 1), 0);
+      const lastVisitedAt = userDevices.length > 0
+        ? Math.max(...userDevices.map((d: any) => d.last_visited_at))
+        : u.created_at;
+      return {
+        user_id: u.id,
+        username: u.username,
+        is_guest: u.is_guest ?? 0,
+        created_at: u.created_at,
+        last_visited_at: lastVisitedAt,
+        visit_count: visitCount || 1,
+      };
+    });
+    return joined;
   }
 
   // 13. Select all unique devices: SELECT * FROM unique_devices

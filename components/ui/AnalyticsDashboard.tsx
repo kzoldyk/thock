@@ -13,12 +13,14 @@ import {
   Clock,
   Activity,
   Cpu,
-  UserCheck
+  UserCheck,
+  ArrowUpDown
 } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { appThemes } from "@/lib/themes";
 import { getFontClass } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 interface Summary {
   totalVisitors: number;
@@ -51,6 +53,15 @@ interface RecentSession {
   country: string;
 }
 
+interface VisitedUser {
+  userId: string;
+  username: string;
+  isGuest: boolean;
+  createdAt: number;
+  lastVisitedAt: number;
+  visitCount: number;
+}
+
 interface AnalyticsData {
   summary: Summary;
   dailyTrend: DailyTrendItem[];
@@ -61,6 +72,7 @@ interface AnalyticsData {
     country: DistributionItem[];
   };
   recentSessions: RecentSession[];
+  visitedUsers: VisitedUser[];
 }
 
 // Helper to get country flag emoji
@@ -164,10 +176,19 @@ export default function AnalyticsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [rangeType, setRangeType] = useState<"preset" | "custom">("preset");
   const [timeRange, setTimeRange] = useState<7 | 14 | 30>(14);
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
+  const [mountTime] = useState(() => Date.now());
+  const [customStart, setCustomStart] = useState(() => {
+    return new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  });
+  const [customEnd, setCustomEnd] = useState(() => {
+    return new Date().toISOString().split("T")[0];
+  });
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "recent">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "recent" | "users">("overview");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [filterUserType, setFilterUserType] = useState<"all" | "members" | "guests">("all");
+  const [sortBy, setSortBy] = useState<"lastVisited" | "visitCount" | "createdAt">("lastVisited");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [hoveredPoint, setHoveredPoint] = useState<{
     index: number;
     x: number;
@@ -176,12 +197,6 @@ export default function AnalyticsDashboard() {
     item: DailyTrendItem;
   } | null>(null);
 
-  useEffect(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
-    const pastStr = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    setCustomStart(pastStr);
-    setCustomEnd(todayStr);
-  }, []);
 
   const fetchData = async () => {
     try {
@@ -263,12 +278,12 @@ export default function AnalyticsDashboard() {
     );
   }
 
-  const { dailyTrend, recentSessions } = data;
+  const { dailyTrend, recentSessions, visitedUsers = [] } = data;
 
   // Filter sessions (devices) active in the selected range
   const filteredDevices = recentSessions.filter((d) => {
     if (rangeType === "preset") {
-      const cutoffTime = Date.now() - timeRange * 24 * 60 * 60 * 1000;
+      const cutoffTime = mountTime - timeRange * 24 * 60 * 60 * 1000;
       return d.lastVisitedAt >= cutoffTime;
     } else {
       const startMs = new Date(customStart + "T00:00:00").getTime();
@@ -325,11 +340,50 @@ export default function AnalyticsDashboard() {
   // Filter daily trend based on range
   const filteredDailyTrend = dailyTrend.filter((item) => {
     if (rangeType === "preset") {
-      const cutoffStr = new Date(Date.now() - timeRange * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const cutoffStr = new Date(mountTime - timeRange * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       return item.date >= cutoffStr;
     } else {
       return item.date >= customStart && item.date <= customEnd;
     }
+  });
+
+  // Filter users active in the selected range
+  const filteredUsersByTime = visitedUsers.filter((u) => {
+    if (rangeType === "preset") {
+      const cutoffTime = mountTime - timeRange * 24 * 60 * 60 * 1000;
+      return u.lastVisitedAt >= cutoffTime;
+    } else {
+      const startMs = new Date(customStart + "T00:00:00").getTime();
+      const endMs = new Date(customEnd + "T23:59:59").getTime();
+      return u.lastVisitedAt >= startMs && u.lastVisitedAt <= endMs;
+    }
+  });
+
+  // Filter users by search query and type
+  const searchedUsers = filteredUsersByTime.filter((u) => {
+    const q = userSearchQuery.toLowerCase();
+    const matchesSearch = u.username.toLowerCase().includes(q);
+    
+    if (filterUserType === "members") {
+      return matchesSearch && !u.isGuest;
+    }
+    if (filterUserType === "guests") {
+      return matchesSearch && u.isGuest;
+    }
+    return matchesSearch;
+  });
+
+  // Sort users
+  const sortedUsers = [...searchedUsers].sort((a, b) => {
+    let comparison = 0;
+    if (sortBy === "lastVisited") {
+      comparison = a.lastVisitedAt - b.lastVisitedAt;
+    } else if (sortBy === "visitCount") {
+      comparison = a.visitCount - b.visitCount;
+    } else if (sortBy === "createdAt") {
+      comparison = a.createdAt - b.createdAt;
+    }
+    return sortOrder === "desc" ? -comparison : comparison;
   });
 
   // Filter sessions based on search query
@@ -576,6 +630,19 @@ export default function AnalyticsDashboard() {
           >
             Session Log ({filteredSessions.length})
             {activeTab === "recent" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent)]" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`pb-3 font-semibold text-sm transition-colors relative cursor-pointer ${
+              activeTab === "users"
+                ? "text-[var(--foreground)]"
+                : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            Visited Users ({sortedUsers.length})
+            {activeTab === "users" && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent)]" />
             )}
           </button>
@@ -978,6 +1045,114 @@ export default function AnalyticsDashboard() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "users" && (
+          <div className="space-y-6">
+            {/* Filters panel */}
+            <div className="glass-panel p-4 rounded-2xl border-[var(--chrome-border)] flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:max-w-xs">
+                <Search className="w-4 h-4 text-[var(--muted)] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by username..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] rounded-xl text-xs placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent)]/50 transition-colors"
+                />
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+                {/* User Type Filter */}
+                <div className="glass-panel p-1 rounded-xl flex gap-1 text-[11px] font-semibold h-[32px] items-center">
+                  {(["all", "members", "guests"] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setFilterUserType(type)}
+                      className={`px-3 py-1 rounded-lg transition-colors cursor-pointer capitalize ${
+                        filterUserType === type
+                          ? "bg-[var(--accent)] text-[var(--background)]"
+                          : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sort Filter */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-[var(--muted)] font-semibold uppercase px-1">Sort:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] rounded-lg px-2.5 py-1 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]/50 transition-colors h-[32px] font-semibold cursor-pointer"
+                  >
+                    <option value="lastVisited">Last Active</option>
+                    <option value="visitCount">Total Visits</option>
+                    <option value="createdAt">Date Joined</option>
+                  </select>
+
+                  <button
+                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                    className="glass-panel glass-glow p-2 rounded-xl text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer h-[32px] w-[32px] flex items-center justify-center"
+                    title="Toggle sort order"
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Grid of Users */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {sortedUsers.length === 0 ? (
+                <div className="col-span-full glass-panel p-12 text-center text-[var(--muted)] rounded-2xl border-[var(--chrome-border)]">
+                  No visited users found.
+                </div>
+              ) : (
+                sortedUsers.map((user) => (
+                  <div
+                    key={user.userId}
+                    className="glass-panel p-5 rounded-2xl border-[var(--chrome-border)] hover:border-[var(--accent)]/30 transition-all duration-300 flex flex-col justify-between group"
+                  >
+                    <div className="flex items-center gap-3.5 mb-4">
+                      <UserAvatar username={user.username} size="lg" />
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm truncate" title={user.username}>
+                          {user.username}
+                        </h4>
+                        <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-full mt-1 ${
+                          user.isGuest
+                            ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                            : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                        }`}>
+                          {user.isGuest ? "Guest" : "Member"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-[var(--chrome-border)]/50 pt-3 mt-auto space-y-2 text-[11px]">
+                      <div className="flex justify-between items-center text-[var(--muted)]">
+                        <span>Total Visits</span>
+                        <span className="font-mono font-bold text-[var(--foreground)]">{user.visitCount}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[var(--muted)]">
+                        <span>Last Active</span>
+                        <span className="font-semibold text-[var(--foreground)]">
+                          {formatRelativeTime(user.lastVisitedAt)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[var(--muted)]">
+                        <span>Joined</span>
+                        <span className="text-[var(--foreground)]">{new Date(user.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

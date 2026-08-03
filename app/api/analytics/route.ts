@@ -27,6 +27,7 @@ export async function GET() {
           country: [],
         },
         recentSessions: [],
+        visitedUsers: [],
       });
     }
 
@@ -177,6 +178,28 @@ export async function GET() {
       };
     });
 
+    const dbUsers = await db.query(`
+      SELECT 
+        u.id as user_id, 
+        u.username, 
+        u.is_guest, 
+        u.created_at,
+        COALESCE(MAX(d.last_visited_at), u.created_at) as last_visited_at, 
+        COALESCE(SUM(d.visit_count), 1) as visit_count
+      FROM users u
+      LEFT JOIN unique_devices d ON u.id = d.user_id
+      GROUP BY u.id, u.username, u.is_guest, u.created_at
+    `);
+
+    const visitedUsers = (dbUsers || []).map((u) => ({
+      userId: u.user_id,
+      username: u.username,
+      isGuest: u.is_guest === 1,
+      createdAt: u.created_at,
+      lastVisitedAt: u.last_visited_at,
+      visitCount: u.visit_count,
+    }));
+
     return NextResponse.json({
       summary: {
         totalVisitors,
@@ -187,6 +210,7 @@ export async function GET() {
       dailyTrend,
       distributions,
       recentSessions,
+      visitedUsers,
     });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
