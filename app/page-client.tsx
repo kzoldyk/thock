@@ -1042,7 +1042,14 @@ export default function Home() {
               <div className="flex-1 flex flex-col justify-center min-h-[160px]">
                 {sessionState === "finished" ? (
                   <div className="flex justify-center px-8">
-                    <ResultCard stats={stats} onRestart={restart} history={getHistory()} currentUser={currentUser} onOpenAuth={() => setAuthOpen(true)} />
+                    <ResultCard
+                      stats={stats}
+                      onRestart={restart}
+                      history={getHistory()}
+                      currentUser={currentUser}
+                      onOpenAuth={() => setAuthOpen(true)}
+                      onViewLeaderboard={() => setActiveTab("Leaderboard")}
+                    />
                   </div>
                 ) : (
                   <WordsDisplay
