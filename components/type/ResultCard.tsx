@@ -11,7 +11,6 @@ import {
   Clock, 
   Flame, 
   AlertCircle, 
-  CheckCircle2, 
   Sparkles, 
   ChevronRight,
   BarChart2
@@ -86,7 +85,6 @@ export function ResultCard({
   // Chart computation & point mapping
   const chartData = useMemo(() => {
     if (!history || history.length === 0) {
-      // Fallback single or dummy points if history is empty
       return [
         { time: 0, liveWpm: stats.wpm, rawWpm: stats.raw, accuracy: stats.accuracy, incorrectChars: stats.mistakes },
         { time: Math.round(stats.elapsedMs / 1000) || 1, liveWpm: stats.wpm, rawWpm: stats.raw, accuracy: stats.accuracy, incorrectChars: stats.mistakes },
@@ -152,220 +150,126 @@ export function ResultCard({
 
   const activePoint = hoveredIndex !== null ? chartPoints.points[hoveredIndex] : null
 
-  const cardVariants = {
-    hidden: { opacity: 0, scale: 0.96, y: 28, filter: "blur(8px)" },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      filter: "blur(0px)",
-      transition: {
-        type: "spring",
-        stiffness: 120,
-        damping: 18,
-        staggerChildren: 0.08,
-        delayChildren: 0.1,
-      },
-    },
-  } as const
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 16, filter: "blur(4px)" },
-    visible: {
-      opacity: 1,
-      y: 0,
-      filter: "blur(0px)",
-      transition: { type: "spring", stiffness: 180, damping: 20 },
-    },
-  } as const
-
   return (
     <motion.div
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      className="w-full max-w-[860px] mx-auto px-4 sm:px-6 my-4"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="w-full max-w-[740px] mx-auto px-2 sm:px-4 my-2"
     >
-      <div
-        className={cn(
-          "rounded-[32px] border bg-[var(--chrome-surface-strong)] backdrop-blur-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden transition-all duration-700",
-          isPerfect
-            ? "border-amber-400/50 shadow-[0_0_90px_-20px_rgba(251,191,36,0.35)]"
-            : "border-[var(--chrome-border)] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)]"
-        )}
-      >
-        {/* Perfect Test Glow */}
-        {isPerfect && (
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 via-transparent to-amber-600/5 pointer-events-none" />
-        )}
-
-        {isPb && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="absolute top-6 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-amber-400 to-amber-600 text-amber-950 text-[10px] font-extrabold uppercase tracking-widest rounded-full shadow-lg z-20 flex items-center gap-1.5"
-          >
-            <Sparkles className="w-3 h-3" />
-            New Personal Best
-          </motion.div>
-        )}
-
-        {/* Top Header: Rank Title & Config Badge */}
-        <motion.div variants={itemVariants} className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      {/* Main Compact Result Card Container */}
+      <div className="rounded-2xl border border-[var(--chrome-border)] bg-[var(--chrome-surface-strong)] p-5 sm:p-6 shadow-xl relative overflow-hidden">
+        
+        {/* Top Bar: Mode & Badges */}
+        <div className="flex items-center justify-between gap-3 mb-5 border-b border-[var(--chrome-border)] pb-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-[var(--foreground)] inline-flex items-center gap-1.5 shadow-sm">
+            <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-[var(--foreground)] inline-flex items-center gap-1.5">
               {getRankTitle(stats.wpm)}
             </span>
+            {isPb && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 inline-flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> New PB
+              </span>
+            )}
             {isPerfect && (
-              <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 inline-flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5" /> 100% Accuracy
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                100% Accuracy
               </span>
             )}
           </div>
 
-          <div className="text-xs font-semibold text-[var(--muted)] flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-lg bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] uppercase tracking-wider text-[10px]">
-              {typingMode === "time" ? `${timeLimit || 30}s Time Mode` : `${typingMode || "Practice"} Mode`}
-            </span>
-          </div>
-        </motion.div>
+          <span className="text-[11px] font-mono text-[var(--muted)] px-2 py-0.5 rounded bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)]">
+            {typingMode === "time" ? `${timeLimit || 30}s` : typingMode}
+          </span>
+        </div>
 
-        {/* Hero Section: Big WPM & Detailed Grid */}
-        <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12 mb-10">
-          {/* Main Big WPM Card */}
-          <motion.div
-            variants={itemVariants}
-            className="flex-shrink-0 text-center relative z-10 w-full lg:w-auto p-6 sm:p-8 rounded-3xl bg-[var(--chrome-surface-soft)]/50 border border-[var(--chrome-border)] shadow-inner"
-          >
-            <div className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-[0.25em] text-[var(--muted)] mb-1 flex items-center justify-center gap-1">
-              <Zap className="w-3 h-3 text-amber-400" /> Typing Speed
+        {/* Hero WPM + Compact Stats Section */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-5 items-center">
+          {/* Main Score Box */}
+          <div className="md:col-span-5 flex flex-col items-center justify-center p-4 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)] flex items-center gap-1">
+              <Zap className="w-3.5 h-3.5 text-[var(--foreground)]" /> WPM
             </div>
-            <h2
-              className={cn(
-                "text-[4.5rem] sm:text-[5.5rem] leading-none font-black tracking-tighter transition-colors drop-shadow-md my-1",
-                isPerfect
-                  ? "text-amber-500 drop-shadow-[0_0_20px_rgba(251,191,36,0.4)]"
-                  : "text-[var(--foreground)]"
-              )}
-            >
+            <div className="text-[3.6rem] leading-none font-bold tracking-tight text-[var(--foreground)] my-1">
               <AnimatedNumber value={stats.wpm} />
-            </h2>
-            <div className="text-xs font-bold text-[var(--muted)] tracking-widest uppercase mt-1">Net WPM</div>
-          </motion.div>
+            </div>
+            <div className="text-[11px] font-medium text-[var(--muted)]">Net Typing Speed</div>
+          </div>
 
-          {/* Stats Grid */}
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 w-full">
-            <motion.div
-              variants={itemVariants}
-              className="p-4 rounded-2xl bg-[var(--chrome-surface-soft)]/40 border border-[var(--chrome-border)]"
-            >
-              <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-[var(--muted)] uppercase tracking-wider mb-1">
-                <BarChart2 className="w-3.5 h-3.5 text-blue-400" />
-                Raw Speed
+          {/* Compact 6-item Grid */}
+          <div className="md:col-span-7 grid grid-cols-3 gap-2.5">
+            <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)]">
+              <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
+                <BarChart2 className="w-3 h-3" /> Raw
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold tabular-nums text-[var(--foreground)]">
+              <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">
                 <AnimatedNumber value={stats.raw} />
-                <span className="text-xs font-medium text-[var(--muted)] ml-1">wpm</span>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              variants={itemVariants}
-              className="p-4 rounded-2xl bg-[var(--chrome-surface-soft)]/40 border border-[var(--chrome-border)]"
-            >
-              <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-[var(--muted)] uppercase tracking-wider mb-1">
-                <Target className="w-3.5 h-3.5 text-emerald-400" />
-                Accuracy
+            <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)]">
+              <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
+                <Target className="w-3 h-3" /> Acc
               </div>
-              <div
-                className={cn(
-                  "text-2xl sm:text-3xl font-extrabold tabular-nums",
-                  isPerfect ? "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" : "text-[var(--foreground)]"
-                )}
-              >
+              <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">
                 <AnimatedNumber value={stats.accuracy} />%
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              variants={itemVariants}
-              className="p-4 rounded-2xl bg-[var(--chrome-surface-soft)]/40 border border-[var(--chrome-border)]"
-            >
-              <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-[var(--muted)] uppercase tracking-wider mb-1">
-                <Activity className="w-3.5 h-3.5 text-purple-400" />
-                Consistency
+            <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)]">
+              <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
+                <Activity className="w-3 h-3" /> Con
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold tabular-nums text-[var(--foreground)]">
+              <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">
                 <AnimatedNumber value={stats.consistency} />%
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              variants={itemVariants}
-              className="p-4 rounded-2xl bg-[var(--chrome-surface-soft)]/40 border border-[var(--chrome-border)]"
-            >
-              <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-[var(--muted)] uppercase tracking-wider mb-1">
-                <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-                Mistakes
+            <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)]">
+              <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
+                <AlertCircle className="w-3 h-3 text-rose-400" /> Errors
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold tabular-nums text-[var(--foreground)]">
+              <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">
                 <AnimatedNumber value={stats.mistakes} />
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              variants={itemVariants}
-              className="p-4 rounded-2xl bg-[var(--chrome-surface-soft)]/40 border border-[var(--chrome-border)]"
-            >
-              <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-[var(--muted)] uppercase tracking-wider mb-1">
-                <Flame className="w-3.5 h-3.5 text-orange-400" />
-                Best Streak
+            <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)]">
+              <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
+                <Flame className="w-3 h-3 text-amber-400" /> Streak
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold tabular-nums text-[var(--foreground)]">
+              <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">
                 <AnimatedNumber value={stats.streak} />
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              variants={itemVariants}
-              className="p-4 rounded-2xl bg-[var(--chrome-surface-soft)]/40 border border-[var(--chrome-border)]"
-            >
-              <div className="flex items-center gap-1.5 text-[10px] font-extrabold text-[var(--muted)] uppercase tracking-wider mb-1">
-                <Clock className="w-3.5 h-3.5 text-sky-400" />
-                Elapsed
+            <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)]">
+              <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
+                <Clock className="w-3 h-3" /> Time
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold tabular-nums text-[var(--foreground)]">
+              <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">
                 {(stats.elapsedMs / 1000).toFixed(1)}s
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
 
-        {/* Interactive Performance Graph Section */}
-        <motion.div
-          variants={itemVariants}
-          className="mb-8 p-5 sm:p-6 rounded-3xl bg-[var(--chrome-surface-soft)]/50 border border-[var(--chrome-border)] relative"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
-                <TrendingUpIcon className="w-4 h-4 text-emerald-400" />
-                Performance Pace
-              </span>
-              <span className="text-[10px] text-[var(--muted)] font-medium">
-                (Hover chart to inspect details)
-              </span>
+        {/* Compact Interactive Performance Pace Graph */}
+        <div className="mb-5 p-3.5 sm:p-4 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] relative">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="text-xs font-semibold text-[var(--foreground)] flex items-center gap-1.5">
+              <span>Performance Chart</span>
+              <span className="text-[10px] font-normal text-[var(--muted)]">(hover points)</span>
             </div>
 
-            {/* Interactive Series Controls */}
-            <div className="flex items-center gap-1 bg-[var(--chrome-surface-strong)] p-1 rounded-xl border border-[var(--chrome-border)]">
+            {/* Flat Series Toggles */}
+            <div className="flex items-center gap-1 bg-[var(--chrome-surface-strong)] p-0.5 rounded-md border border-[var(--chrome-border)]">
               <button
                 onClick={() => setActiveSeries("both")}
                 className={cn(
-                  "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
+                  "px-2 py-0.5 rounded text-[10px] font-medium transition-colors",
                   activeSeries === "both"
-                    ? "bg-[var(--foreground)] text-[var(--background)] shadow-sm"
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
                     : "text-[var(--muted)] hover:text-[var(--foreground)]"
                 )}
               >
@@ -374,44 +278,44 @@ export function ResultCard({
               <button
                 onClick={() => setActiveSeries("net")}
                 className={cn(
-                  "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
+                  "px-2 py-0.5 rounded text-[10px] font-medium transition-colors",
                   activeSeries === "net"
-                    ? "bg-[var(--foreground)] text-[var(--background)] shadow-sm"
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
                     : "text-[var(--muted)] hover:text-[var(--foreground)]"
                 )}
               >
-                Net WPM
+                Net
               </button>
               <button
                 onClick={() => setActiveSeries("raw")}
                 className={cn(
-                  "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
+                  "px-2 py-0.5 rounded text-[10px] font-medium transition-colors",
                   activeSeries === "raw"
-                    ? "bg-[var(--foreground)] text-[var(--background)] shadow-sm"
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
                     : "text-[var(--muted)] hover:text-[var(--foreground)]"
                 )}
               >
-                Raw WPM
+                Raw
               </button>
             </div>
           </div>
 
-          {/* SVG Graph Container */}
-          <div className="relative w-full h-[180px] sm:h-[220px]">
-            {/* Horizontal Grid lines */}
-            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
+          {/* Graph Render Area */}
+          <div className="relative w-full h-[130px] sm:h-[150px]">
+            {/* Grid background lines */}
+            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-15">
               <div className="border-b border-dashed border-[var(--foreground)] w-full flex justify-between text-[9px] text-[var(--muted)]">
-                <span>{maxVal} wpm</span>
+                <span>{maxVal}</span>
               </div>
               <div className="border-b border-dashed border-[var(--foreground)] w-full flex justify-between text-[9px] text-[var(--muted)]">
-                <span>{Math.round(maxVal / 2)} wpm</span>
+                <span>{Math.round(maxVal / 2)}</span>
               </div>
               <div className="border-b border-dashed border-[var(--foreground)] w-full flex justify-between text-[9px] text-[var(--muted)]">
-                <span>0 wpm</span>
+                <span>0</span>
               </div>
             </div>
 
-            {/* SVG Chart */}
+            {/* SVG Lines */}
             <svg
               ref={svgRef}
               width="100%"
@@ -422,60 +326,35 @@ export function ResultCard({
               onMouseMove={handleMouseMove}
               onMouseLeave={() => setHoveredIndex(null)}
             >
-              <defs>
-                <linearGradient id="netWpmGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-
-              {/* Area Fill */}
-              {(activeSeries === "both" || activeSeries === "net") && chartPoints.areaPath && (
-                <motion.path
-                  d={chartPoints.areaPath}
-                  fill="url(#netWpmGradient)"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                />
-              )}
-
-              {/* Raw WPM Path (Dashed) */}
+              {/* Raw WPM Line */}
               {(activeSeries === "both" || activeSeries === "raw") && chartPoints.rawPath && (
-                <motion.path
+                <path
                   d={chartPoints.rawPath}
                   fill="none"
                   stroke="var(--muted)"
-                  strokeWidth="2"
+                  strokeWidth="1.5"
                   strokeDasharray="3 3"
                   vectorEffect="non-scaling-stroke"
                   opacity="0.6"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 1.2, ease: "easeOut" }}
                 />
               )}
 
-              {/* Net WPM Path (Solid) */}
+              {/* Net WPM Solid Line */}
               {(activeSeries === "both" || activeSeries === "net") && chartPoints.netPath && (
-                <motion.path
+                <path
                   d={chartPoints.netPath}
                   fill="none"
                   stroke="var(--foreground)"
-                  strokeWidth="3.5"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 1.2, ease: "easeOut" }}
                 />
               )}
 
-              {/* Crosshair & Active Hover Dots */}
+              {/* Active Hover Crosshair */}
               {activePoint && (
                 <g>
-                  {/* Vertical Crosshair Line */}
                   <line
                     x1={activePoint.x}
                     y1="0"
@@ -484,30 +363,26 @@ export function ResultCard({
                     stroke="var(--foreground)"
                     strokeWidth="1"
                     strokeDasharray="2 2"
-                    opacity="0.5"
+                    opacity="0.4"
                     vectorEffect="non-scaling-stroke"
                   />
-
-                  {/* Net WPM Point Circle */}
                   {(activeSeries === "both" || activeSeries === "net") && (
                     <circle
                       cx={activePoint.x}
                       cy={activePoint.netY}
-                      r="4"
+                      r="3.5"
                       className="fill-[var(--foreground)] stroke-[var(--background)]"
-                      strokeWidth="2"
+                      strokeWidth="1.5"
                       vectorEffect="non-scaling-stroke"
                     />
                   )}
-
-                  {/* Raw WPM Point Circle */}
                   {(activeSeries === "both" || activeSeries === "raw") && (
                     <circle
                       cx={activePoint.x}
                       cy={activePoint.rawY}
-                      r="3"
-                      className="fill-blue-400 stroke-[var(--background)]"
-                      strokeWidth="2"
+                      r="2.5"
+                      className="fill-[var(--muted)] stroke-[var(--background)]"
+                      strokeWidth="1.5"
                       vectorEffect="non-scaling-stroke"
                     />
                   )}
@@ -515,128 +390,64 @@ export function ResultCard({
               )}
             </svg>
 
-            {/* Interactive Floating Tooltip */}
+            {/* Hover Tooltip */}
             {activePoint && (
               <div
-                className="absolute z-30 pointer-events-none transition-all duration-75 transform -translate-x-1/2 -translate-y-full mb-3"
+                className="absolute z-30 pointer-events-none transition-all duration-75 transform -translate-x-1/2 -translate-y-full mb-2"
                 style={{
                   left: `${activePoint.x}%`,
                   top: `${Math.min(activePoint.netY, activePoint.rawY)}%`,
                 }}
               >
-                <div className="bg-[var(--chrome-surface-strong)] text-[var(--foreground)] text-xs font-semibold px-3 py-2 rounded-xl shadow-2xl border border-[var(--chrome-border)] whitespace-nowrap flex flex-col gap-1">
-                  <div className="text-[10px] text-[var(--muted)] font-extrabold uppercase tracking-wider border-b border-[var(--chrome-border)] pb-1">
+                <div className="bg-[var(--chrome-surface-strong)] text-[var(--foreground)] text-[11px] font-medium px-2.5 py-1.5 rounded-md shadow-lg border border-[var(--chrome-border)] whitespace-nowrap flex flex-col gap-0.5">
+                  <div className="text-[9px] text-[var(--muted)] uppercase font-mono">
                     Time: {activePoint.time}s
                   </div>
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1 font-bold">
-                      <span className="w-2 h-2 rounded-full bg-[var(--foreground)] inline-block" />
-                      WPM: <span className="text-amber-400">{activePoint.liveWpm}</span>
-                    </span>
-                    <span className="flex items-center gap-1 text-[var(--muted)]">
-                      <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
-                      Raw: <span>{activePoint.rawWpm}</span>
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-[var(--muted)] flex items-center justify-between gap-2 pt-0.5">
-                    <span>Accuracy: {activePoint.accuracy}%</span>
-                    {activePoint.incorrectChars > 0 && (
-                      <span className="text-rose-400 font-bold">
-                        {activePoint.incorrectChars} err
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">WPM: {activePoint.liveWpm}</span>
+                    <span className="text-[var(--muted)]">Raw: {activePoint.rawWpm}</span>
                   </div>
                 </div>
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
 
-        {/* Cool Leaderboard Banner (Replaces the raw status text) */}
-        <motion.div variants={itemVariants} className="mb-8">
-          <div
-            onClick={currentUser ? onViewLeaderboard : onOpenAuth}
-            className="group cursor-pointer w-full p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 hover:border-amber-500/40 transition-all duration-300 flex items-center justify-between gap-4 shadow-sm hover:shadow-md"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
-                <Trophy className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
-                  {currentUser ? (
-                    <>
-                      <span>Session recorded to Leaderboard!</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 uppercase font-extrabold tracking-wider">
-                        Live
-                      </span>
-                    </>
-                  ) : (
-                    <span>Compete on the Global Leaderboard</span>
-                  )}
-                </div>
-                <div className="text-[11px] text-[var(--muted)] mt-0.5">
-                  {currentUser
-                    ? "Click to see where your WPM ranks against top typists worldwide."
-                    : "Sign in to secure your spot and climb the global rankings!"}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1 text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform shrink-0">
-              <span>{currentUser ? "View Leaderboard" : "Sign In"}</span>
-              <ChevronRight className="w-4 h-4" />
+        {/* Clean Flat Leaderboard Banner Callout */}
+        <div
+          onClick={currentUser ? onViewLeaderboard : onOpenAuth}
+          className="cursor-pointer w-full p-3 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] hover:border-[var(--foreground)]/30 transition-colors flex items-center justify-between gap-3 mb-5"
+        >
+          <div className="flex items-center gap-2.5">
+            <Trophy className="w-4 h-4 text-[var(--foreground)] shrink-0" />
+            <div className="text-xs font-medium text-[var(--foreground)]">
+              {currentUser
+                ? "Score submitted to Leaderboard. Click to inspect rankings."
+                : "Sign in to save scores and compete on the global leaderboard."}
             </div>
           </div>
-        </motion.div>
+          <ChevronRight className="w-4 h-4 text-[var(--muted)] shrink-0" />
+        </div>
 
-        {/* Action Buttons Footer */}
-        <motion.div
-          variants={itemVariants}
-          className="pt-4 border-t border-[var(--chrome-border)] flex flex-wrap items-center justify-between gap-4 relative z-10"
-        >
-          {/* View Leaderboard Action */}
+        {/* Solid Action Buttons (No AI Slop Gradients) */}
+        <div className="flex items-center justify-between gap-3 border-t border-[var(--chrome-border)] pt-4">
           <button
             onClick={onViewLeaderboard}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold text-[var(--foreground)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] hover:border-[var(--foreground)]/30 transition-all duration-200 cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-[var(--foreground)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] transition-colors cursor-pointer"
           >
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>Leaderboard</span>
+            <Trophy className="w-3.5 h-3.5" />
+            Leaderboard
           </button>
 
-          {/* Start Next Session CTA */}
           <button
             onClick={onRestart}
-            className={cn(
-              "group flex items-center gap-2.5 px-8 py-3.5 rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg cursor-pointer",
-              isPerfect
-                ? "bg-gradient-to-r from-amber-400 to-amber-600 text-amber-950 hover:shadow-amber-500/30"
-                : "bg-[var(--foreground)] text-[var(--background)] hover:shadow-xl"
-            )}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-bold bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 active:scale-[0.99] transition-all cursor-pointer shadow-sm"
           >
-            <RotateCcw className="w-4 h-4 transition-transform group-hover:-rotate-90" />
+            <RotateCcw className="w-3.5 h-3.5" />
             <span>Start Next Session</span>
-            <span className="opacity-60 group-hover:translate-x-1 transition-transform">→</span>
           </button>
-        </motion.div>
+        </div>
       </div>
     </motion.div>
-  )
-}
-
-function TrendingUpIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-      <polyline points="17 6 23 6 23 12" />
-    </svg>
   )
 }
