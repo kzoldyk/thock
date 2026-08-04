@@ -14,7 +14,12 @@ interface WordsDisplayProps {
   sessionState?: SessionState
 }
 
-export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex, currentCharIndex, sessionState = "idle" }: WordsDisplayProps) {
+export const WordsDisplay = memo(function WordsDisplay({
+  words,
+  currentWordIndex,
+  currentCharIndex,
+  sessionState = "idle",
+}: WordsDisplayProps) {
   const fontFamily = useAppStore((s) => s.fontFamily)
   const paragraphMode = useAppStore((s) => s.paragraphMode)
   const showKeyboard = useAppStore((s) => s.showKeyboard)
@@ -22,9 +27,9 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
   const activeWordRef = useRef<HTMLSpanElement>(null)
   const activeCharRef = useRef<HTMLSpanElement>(null)
   const scrollingRowRef = useRef<HTMLDivElement>(null)
+
   const [translateX, setTranslateX] = useState(0)
   const [translateY, setTranslateY] = useState(0)
-
   const [caretPos, setCaretPos] = useState({ left: 0, top: 0, height: 36 })
 
   const fontClass = useMemo(() => getFontClass(fontFamily), [fontFamily])
@@ -33,12 +38,18 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
   useEffect(() => {
     if (paragraphMode) {
       setTranslateX(0)
-      if (activeWordRef.current && containerRef.current) {
-        const activeEl = activeWordRef.current
-        const activeTop = activeEl.offsetTop
-        // Keep active line at the second line position (approx 65px vertical offset)
-        if (activeTop > 80) {
-          setTranslateY(-activeTop + 65)
+      if (activeWordRef.current && containerRef.current && scrollingRowRef.current) {
+        const activeWord = activeWordRef.current
+        const rowEl = scrollingRowRef.current
+
+        const wordRect = activeWord.getBoundingClientRect()
+        const rowRect = rowEl.getBoundingClientRect()
+
+        const relativeTop = wordRect.top - rowRect.top
+
+        // Keep active line centered in the paragraph viewport
+        if (relativeTop > 50) {
+          setTranslateY(-relativeTop + 40)
         } else {
           setTranslateY(0)
         }
@@ -50,32 +61,41 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
     if (activeWordRef.current && containerRef.current) {
       const activeEl = activeWordRef.current
       const containerEl = containerRef.current
-      
+
       const activeLeft = activeEl.offsetLeft
       const containerWidth = containerEl.offsetWidth
-      
-      // Align the active word at 25% width from the left side of the window
-      const targetX = -activeLeft + (containerWidth * 0.25)
+
+      // Align active word at 25% of container width for typewriter scrolling
+      const targetX = -activeLeft + containerWidth * 0.25
       setTranslateX(targetX)
     }
   }, [currentWordIndex, paragraphMode])
 
-  // Measure active character coordinates relative to the scrolling row
+  // Precise measurement of active character relative to scrollingRowRef using getBoundingClientRect
   useEffect(() => {
-    if (activeCharRef.current && activeWordRef.current) {
-      const charEl = activeCharRef.current
-      const wordEl = activeWordRef.current
-      setCaretPos({
-        left: charEl.offsetLeft + wordEl.offsetLeft,
-        top: charEl.offsetTop + wordEl.offsetTop,
-        height: charEl.offsetHeight || 36,
-      })
+    const updateCaret = () => {
+      if (activeCharRef.current && scrollingRowRef.current) {
+        const charRect = activeCharRef.current.getBoundingClientRect()
+        const rowRect = scrollingRowRef.current.getBoundingClientRect()
+
+        if (charRect.height > 0) {
+          setCaretPos({
+            left: charRect.left - rowRect.left,
+            top: charRect.top - rowRect.top,
+            height: charRect.height || 36,
+          })
+        }
+      }
     }
-  }, [currentWordIndex, currentCharIndex, words])
+
+    updateCaret()
+    window.addEventListener("resize", updateCaret)
+    return () => window.removeEventListener("resize", updateCaret)
+  }, [currentWordIndex, currentCharIndex, words, paragraphMode])
 
   const elements = useMemo(() => {
     const result: React.ReactNode[] = []
-    
+
     words.forEach((word, wi) => {
       const isCurrentWord = wi === currentWordIndex
       const chars: React.ReactNode[] = []
@@ -92,11 +112,16 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
           >
             <span
               className={cn(
-                "transition-all duration-150",
-                state === "untyped" && (isCurrentWord ? "text-[var(--foreground)] opacity-[0.9]" : "text-[var(--foreground)] opacity-100"),
-                state === "correct" && "text-[var(--foreground)] opacity-40",
-                state === "incorrect" && "text-red-500 opacity-95 border-b-[2px] border-red-500/40",
-                state === "extra" && "text-red-500 opacity-95 border-b-[2px] border-red-500/40",
+                "transition-colors duration-75",
+                state === "untyped" &&
+                  (isCurrentWord
+                    ? "text-[var(--foreground)] opacity-90"
+                    : "text-[var(--foreground)] opacity-100"),
+                state === "correct" && "text-[var(--foreground)] opacity-35",
+                state === "incorrect" &&
+                  "text-rose-500 opacity-100 border-b-2 border-rose-500/60",
+                state === "extra" &&
+                  "text-rose-500 opacity-100 border-b-2 border-rose-500/60"
               )}
             >
               {char.char}
@@ -108,7 +133,10 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
       // Perfect word sparkle
       if (word.isPerfect && wi === currentWordIndex - 1) {
         chars.push(
-          <span key={`sparkle-${wi}`} className="absolute top-[-10px] right-[-10px] pointer-events-none z-20 text-[var(--accent)] animate-sparkle">
+          <span
+            key={`sparkle-${wi}`}
+            className="absolute top-[-10px] right-[-10px] pointer-events-none z-20 text-[var(--accent)] animate-sparkle"
+          >
             ✨
           </span>
         )
@@ -130,59 +158,79 @@ export const WordsDisplay = memo(function WordsDisplay({ words, currentWordIndex
           key={wi}
           ref={isCurrentWord ? activeWordRef : undefined}
           className={cn(
-            "inline-flex tracking-tight transition-all duration-300 mr-6 py-1.5 relative",
-            !paragraphMode && "whitespace-nowrap shrink-0",
-            paragraphMode 
-              ? (wi < currentWordIndex ? "opacity-35" : wi === currentWordIndex ? "opacity-100 font-semibold scale-[1.01] origin-left" : "opacity-[0.6]")
-              : (wi < currentWordIndex ? "opacity-25" : wi === currentWordIndex ? "opacity-100 font-semibold scale-[1.01] origin-left" : "opacity-[0.12]")
+            "inline-flex tracking-tight transition-opacity duration-150 relative py-1",
+            paragraphMode ? "mr-4 sm:mr-5" : "mr-6 whitespace-nowrap shrink-0",
+            paragraphMode
+              ? wi < currentWordIndex
+                ? "opacity-35 font-normal"
+                : wi === currentWordIndex
+                ? "opacity-100 font-semibold"
+                : "opacity-60 font-normal"
+              : wi < currentWordIndex
+              ? "opacity-25 font-normal"
+              : wi === currentWordIndex
+              ? "opacity-100 font-semibold"
+              : "opacity-15 font-normal"
           )}
         >
           {chars}
-        </span>,
+        </span>
       )
     })
     return result
-  }, [words, currentWordIndex, currentCharIndex])
+  }, [words, currentWordIndex, currentCharIndex, paragraphMode])
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className={cn(
-        "w-full max-w-[900px] mx-auto px-12 select-none overflow-hidden relative transition-all duration-300",
-        showKeyboard ? "my-2 sm:my-3" : "my-6 sm:my-8",
-        paragraphMode ? "h-[195px]" : "h-auto"
+        "w-full max-w-[900px] mx-auto px-6 sm:px-12 select-none overflow-hidden relative transition-all duration-300",
+        showKeyboard ? "my-2 sm:my-3" : "my-4 sm:my-6",
+        paragraphMode ? "h-[170px] sm:h-[190px]" : "h-auto py-2"
       )}
-      style={paragraphMode ? {
-        maskImage: "linear-gradient(to bottom, transparent, white 20%, white 80%, transparent)",
-        WebkitMaskImage: "linear-gradient(to bottom, transparent, white 20%, white 80%, transparent)",
-      } : {
-        maskImage: "linear-gradient(to right, transparent, white 15%, white 85%, transparent)",
-        WebkitMaskImage: "linear-gradient(to right, transparent, white 15%, white 85%, transparent)",
-      }}
+      style={
+        paragraphMode
+          ? {
+              maskImage:
+                "linear-gradient(to bottom, transparent 0%, white 15%, white 85%, transparent 100%)",
+              WebkitMaskImage:
+                "linear-gradient(to bottom, transparent 0%, white 15%, white 85%, transparent 100%)",
+            }
+          : {
+              maskImage:
+                "linear-gradient(to right, transparent 0%, white 12%, white 88%, transparent 100%)",
+              WebkitMaskImage:
+                "linear-gradient(to right, transparent 0%, white 12%, white 88%, transparent 100%)",
+            }
+      }
     >
-      <div 
+      <div
         ref={scrollingRowRef}
         className={cn(
-          "flex items-center text-3xl sm:text-4xl leading-relaxed tracking-tight text-[var(--foreground)] transition-transform duration-300 ease-out relative",
-          paragraphMode ? "flex-row flex-wrap justify-start" : "flex-row flex-nowrap whitespace-nowrap",
+          "text-3xl sm:text-4xl leading-relaxed tracking-tight text-[var(--foreground)] transition-transform duration-200 ease-out relative",
+          paragraphMode
+            ? "flex flex-wrap justify-start items-baseline gap-y-2"
+            : "flex flex-nowrap items-center whitespace-nowrap",
           fontClass
         )}
         style={{
-          transform: paragraphMode ? `translateY(${translateY}px)` : `translateX(${translateX}px)`,
+          transform: paragraphMode
+            ? `translateY(${translateY}px)`
+            : `translateX(${translateX}px)`,
         }}
       >
         {/* Floating Spring Caret */}
         <motion.div
           animate={{
-            x: caretPos.left - 1.5,
-            y: caretPos.top + 5,
-            height: caretPos.height - 10,
+            x: caretPos.left - 1,
+            y: caretPos.top + 3,
+            height: caretPos.height - 6,
           }}
           transition={{
             type: "spring",
-            stiffness: 450,
-            damping: 32,
-            mass: 0.7,
+            stiffness: 600,
+            damping: 36,
+            mass: 0.4,
           }}
           className={cn(
             "absolute left-0 w-[2.5px] bg-[var(--accent)] rounded-full pointer-events-none z-30 shadow-[0_0_8px_rgba(var(--accent-rgb),0.3)]",
