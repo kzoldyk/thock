@@ -543,27 +543,14 @@ function AsciiExplosionsOverlay() {
 
 export default function Home() {
   const keyboardRef = useRef<KeyboardHandle>(null)
+  const mobileInputRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState("Practice")
   const [windowFocused, setWindowFocused] = useState(true)
   const [visitorCount, setVisitorCount] = useState<number | null>(null)
   const [uniqueVisitorCount, setUniqueVisitorCount] = useState<number | null>(null)
-  const [mobileQuoteIdx, setMobileQuoteIdx] = useState(0)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null)
   const [authOpen, setAuthOpen] = useState(false)
-  const [forceMobileTyping, setForceMobileTyping] = useState(false)
-
-  useEffect(() => {
-    const handleHardwareKey = (e: KeyboardEvent) => {
-      if (e.key && e.key.length === 1 && !forceMobileTyping) {
-        const target = e.target as HTMLElement | null
-        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return
-        setForceMobileTyping(true)
-      }
-    }
-    window.addEventListener("keydown", handleHardwareKey)
-    return () => window.removeEventListener("keydown", handleHardwareKey)
-  }, [forceMobileTyping])
 
   useEffect(() => {
     const initSession = async () => {
@@ -658,11 +645,6 @@ export default function Home() {
     }
   }, [currentUser])
 
-  const mobileQuote = DEV_QUOTES[mobileQuoteIdx] || DEV_QUOTES[0]
-  const cycleMobileQuote = () => {
-    setMobileQuoteIdx((prev) => (prev + 1) % DEV_QUOTES.length)
-  }
-
   const appThemeId = useAppStore((s) => s.appThemeId)
   const layoutId = useAppStore((s) => s.layoutId)
   const keyboardThemeId = useAppStore((s) => s.keyboardThemeId)
@@ -700,6 +682,9 @@ export default function Home() {
     currentCharIndex,
     restart,
     activeKeys,
+    pressVirtualKey,
+    releaseVirtualKey,
+    handleDirectInput,
     getHistory,
   } = useTypingSession(keyboardRef, layoutId, !windowFocused || activeTab !== "Practice")
 
@@ -707,6 +692,7 @@ export default function Home() {
   const reverb = useAppStore((s) => s.reverb)
   const switchPackId = useAppStore((s) => s.switchPackId)
   const setSwitchPackId = useAppStore((s) => s.setSwitchPackId)
+
 
   useEffect(() => {
     let disposed = false
@@ -824,6 +810,7 @@ export default function Home() {
 
   return (
     <main
+      suppressHydrationWarning
       className={cn(
         "flex flex-col flex-1 min-h-[100dvh] overflow-hidden relative transition-colors duration-500 bg-[var(--background)] text-[var(--foreground)] flow-transition",
         fontClass,
@@ -876,26 +863,30 @@ export default function Home() {
       <div className="absolute bottom-[-15%] left-[25%] right-[25%] h-[35%] bg-gradient-to-t from-[var(--accent)]/3 to-transparent rounded-full blur-[110px] pointer-events-none z-[0] opacity-70" />
 
       {/* Main Layout Container */}
-      <div className={cn(forceMobileTyping ? "flex" : "hidden md:flex", "flex-col flex-1 justify-between relative z-10")}>
+      <div className="flex flex-col flex-1 justify-between relative z-10" suppressHydrationWarning>
         {/* Header Navigation */}
-        <header className={cn(
-          "flex items-center justify-between px-8 py-4 relative z-10 select-none flow-transition",
-          (flowMode || sessionState === "typing") && "flow-fade-out"
-        )}>
+        <header 
+          suppressHydrationWarning
+          className={cn(
+            "flex items-center justify-between px-3 xs:px-4 sm:px-8 py-2.5 sm:py-4 relative z-10 select-none flow-transition",
+            (flowMode || sessionState === "typing") && "flow-fade-out"
+          )}
+        >
           {/* Left: Minimal Logo */}
-          <div className="flex items-center gap-2.5 cursor-pointer select-none">
+          <div className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none shrink-0" suppressHydrationWarning>
             <Image
               src="/logo-v2.png"
               alt="thock logo"
-              width={40}
-              height={40}
-              className="w-10 h-10 object-contain"
+              width={36}
+              height={36}
+              className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+              suppressHydrationWarning
             />
-            <span className="font-bold tracking-tight text-lg text-[var(--foreground)]">thock<span className="text-[var(--accent)]">.</span></span>
+            <span className="font-bold tracking-tight text-base sm:text-lg text-[var(--foreground)]">thock<span className="text-[var(--accent)]">.</span></span>
           </div>
 
           {/* Center: Premium Nav Items */}
-          <nav className="hidden sm:flex items-center p-0.5 bg-black/5 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 backdrop-blur-sm">
+          <nav className="hidden md:flex items-center p-0.5 bg-black/5 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 backdrop-blur-sm">
             {["Practice", "Challenges", "Leaderboard", "Statistics"].map((tab) => {
               const isPractice = tab === "Practice"
               const isLeaderboard = tab === "Leaderboard"
@@ -907,7 +898,7 @@ export default function Home() {
                   disabled={!isEnabled}
                   onClick={() => isEnabled && setActiveTab(tab)}
                   className={cn(
-                    "relative px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 flex items-center gap-1.5",
+                    "relative px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 flex items-center gap-1.5",
                     !isEnabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
                   )}
                 >
@@ -934,14 +925,14 @@ export default function Home() {
           </nav>
 
           {/* Right: profile + settings + sound voice dropdown + toggles */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 shrink-0">
             {/* Quick Switch Sound Voice Selector */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] hover:bg-[var(--chrome-surface)] transition-all duration-300 button-lift">
-              <span className="text-xs">🔊</span>
+            <div className="flex items-center gap-1 px-2 xs:px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] hover:bg-[var(--chrome-surface)] transition-all duration-300 button-lift">
+              <span className="text-[11px] sm:text-xs">🔊</span>
               <select
                 value={switchPackId}
                 onChange={(e) => setSwitchPackId(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-[var(--foreground)] focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[170px] truncate"
+                className="bg-transparent text-[10.5px] xs:text-[11px] sm:text-xs font-semibold text-[var(--foreground)] focus:outline-none cursor-pointer max-w-[75px] xs:max-w-[115px] sm:max-w-[170px] truncate"
                 title="Change Keyboard Sound Voice"
               >
                 {switchProfiles.map((sw) => (
@@ -954,7 +945,7 @@ export default function Home() {
 
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-xs sm:text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
               title={soundEnabled ? "Mute Key Sounds" : "Unmute Key Sounds"}
               aria-label={soundEnabled ? "Mute Key Sounds" : "Unmute Key Sounds"}
             >
@@ -963,7 +954,7 @@ export default function Home() {
 
             <button
               onClick={() => setShowKeyboard(!showKeyboard)}
-              className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-xs sm:text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
               title={showKeyboard ? "Hide Keyboard" : "Show Keyboard"}
               aria-label={showKeyboard ? "Hide Keyboard" : "Show Keyboard"}
             >
@@ -972,7 +963,7 @@ export default function Home() {
 
             <button
               onClick={toggleDarkMode}
-              className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-xs sm:text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
               title="Toggle Theme"
               aria-label="Toggle Theme"
             >
@@ -981,22 +972,23 @@ export default function Home() {
             
             <button
               onClick={() => setFeedbackOpen(true)}
-              className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift"
+              className="hidden sm:inline-flex px-3 sm:px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift"
             >
               Feedback
             </button>
 
             <button
               onClick={() => setSettingsOpen(true)}
-              className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift ml-1"
+              className="px-2.5 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift"
             >
-              Settings
+              <span className="sm:hidden">⚙️</span>
+              <span className="hidden sm:inline">Settings</span>
             </button>
 
             {/* Profile Avatar / Authentication Trigger */}
             {currentUser ? (
-              <div className="flex items-center gap-2 group relative">
-                <UserAvatar username={currentUser.username} size="md" />
+              <div className="flex items-center gap-1.5 group relative">
+                <UserAvatar username={currentUser.username} size="sm" />
                 <button
                   onClick={async () => {
                     const res = await fetch("/api/auth/logout", { method: "POST" })
@@ -1004,7 +996,7 @@ export default function Home() {
                       setCurrentUser(null)
                     }
                   }}
-                  className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-xl border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100 ml-1 button-lift"
+                  className="hidden group-hover:inline-flex absolute -bottom-7 right-0 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-lg border border-[var(--chrome-border)] bg-[var(--chrome-surface-strong)] text-[var(--foreground)] hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 shadow-md transition-all cursor-pointer z-50 button-lift"
                 >
                   Log Out
                 </button>
@@ -1012,7 +1004,7 @@ export default function Home() {
             ) : (
               <button
                 onClick={() => setAuthOpen(true)}
-                className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift ml-1"
+                className="px-2.5 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold rounded-full bg-[var(--chrome-surface-soft)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 border border-[var(--chrome-border)] cursor-pointer button-lift"
               >
                 Sign In
               </button>
@@ -1021,12 +1013,12 @@ export default function Home() {
         </header>
 
         {/* Main content grid */}
-        <div className={cn("flex-1 flex flex-col justify-between py-4 relative z-10", showKeyboard && "gap-3 sm:gap-4")}>
+        <div className={cn("flex-1 flex flex-col justify-between py-1 sm:py-4 relative z-10", showKeyboard && "gap-1.5 xs:gap-2 sm:gap-4")}>
           {activeTab === "Practice" ? (
             <>
               {/* Quick Mode & Timer Toolbar */}
               {sessionState !== "finished" && (
-                <div className={cn("flex justify-center pt-2 pb-1 flow-transition z-20", (flowMode || sessionState === "typing") && "flow-fade-out")}>
+                <div className={cn("flex justify-center pt-1 pb-0.5 flow-transition z-20", (flowMode || sessionState === "typing") && "flow-fade-out")}>
                   <QuickBar />
                 </div>
               )}
@@ -1039,9 +1031,36 @@ export default function Home() {
               )}
 
               {/* Typing Paragraph Focus Box */}
-              <div className="flex-1 flex flex-col justify-center min-h-[160px]">
+              <div 
+                className="flex-1 flex flex-col justify-center min-h-[70px] xs:min-h-[90px] sm:min-h-[150px] cursor-text"
+                onClick={() => mobileInputRef.current?.focus()}
+              >
+                {/* Hidden Mobile Native Input for Soft Keyboards */}
+                <input
+                  ref={mobileInputRef}
+                  data-typing-input="true"
+                  type="text"
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  className="opacity-0 absolute -top-96 left-0 w-1 h-1 pointer-events-none"
+                  value=""
+                  onChange={(e) => {
+                    const val = e.target.value
+                    if (val) {
+                      handleDirectInput(val.slice(-1))
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Backspace") {
+                      pressVirtualKey("Backspace", "Backspace")
+                    }
+                  }}
+                />
+
                 {sessionState === "finished" ? (
-                  <div className="flex justify-center px-8">
+                  <div className="flex justify-center px-2 sm:px-8">
                     <ResultCard
                       stats={stats}
                       onRestart={restart}
@@ -1063,12 +1082,14 @@ export default function Home() {
 
               {/* Keyboard Display Section */}
               {showKeyboard && sessionState !== "finished" && (
-                <div className="relative px-8 pb-3 max-w-[1000px] w-full mx-auto flex flex-col items-center">
+                <div className="relative px-1 xs:px-2 sm:px-8 pb-1 sm:pb-3 max-w-[1000px] w-full mx-auto flex flex-col items-center">
                   {keyboardType === "2d" ? (
                     <Keyboard2D
                       layoutId={layoutId}
                       themeId={keyboardThemeId}
                       activeKeys={activeKeys}
+                      onKeyPress={pressVirtualKey}
+                      onKeyRelease={releaseVirtualKey}
                     />
                   ) : (
                     <motion.div
@@ -1081,6 +1102,8 @@ export default function Home() {
                         ref={keyboardRef}
                         layoutId={layoutId}
                         themeId={keyboardThemeId}
+                        onKeyPress={pressVirtualKey}
+                        onKeyRelease={releaseVirtualKey}
                       />
                     </motion.div>
                   )}
@@ -1088,7 +1111,7 @@ export default function Home() {
               )}
             </>
           ) : activeTab === "Leaderboard" ? (
-            <div className="flex-1 flex items-center justify-center py-6">
+            <div className="flex-1 flex items-center justify-center py-4 sm:py-6 px-2 sm:px-4">
               <LeaderboardView
                 currentUser={currentUser}
                 onOpenAuth={() => setAuthOpen(true)}
@@ -1101,16 +1124,16 @@ export default function Home() {
                 initial={{ opacity: 0, y: 10, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
-                className="text-center flex flex-col items-center"
+                className="text-center flex flex-col items-center px-4"
               >
-                <div className="w-16 h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-6 relative overflow-hidden">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-4 sm:mb-6 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />
                   <span className="relative z-10 opacity-80">
                     {activeTab === "Challenges" ? "🏆" : activeTab === "Statistics" ? "📈" : "✨"}
                   </span>
                 </div>
-                <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">{activeTab}</h2>
-                <p className="text-[13px] text-[var(--muted)] max-w-[28ch] mx-auto mt-2 leading-relaxed">
+                <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--foreground)]">{activeTab}</h2>
+                <p className="text-[12px] sm:text-[13px] text-[var(--muted)] max-w-[28ch] mx-auto mt-2 leading-relaxed">
                   This experience is still being crafted. Check back in a future update.
                 </p>
               </motion.div>
@@ -1121,21 +1144,21 @@ export default function Home() {
         {/* Footer hint details */}
         {activeTab === "Practice" && (
           <footer className={cn(
-            "text-center pb-4 text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-75 flow-transition",
+            "text-center pb-2 sm:pb-4 text-[9px] sm:text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-75 flow-transition",
             (flowMode || sessionState === "typing") && "flow-fade-out"
           )}>
-            <div>
+            <div className="hidden sm:block">
               Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Tab</kbd> to restart · Press <kbd className="px-1.5 py-0.5 rounded border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-mono text-[9px]">Esc</kbd> for settings
             </div>
             {visitorCount !== null && (
-              <div className="mt-4 flex items-center justify-center gap-2 select-none">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium tracking-normal normal-case border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] opacity-90 transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] group cursor-default">
+              <div className="mt-2 sm:mt-4 flex items-center justify-center gap-2 select-none">
+                <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-medium tracking-normal normal-case border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] opacity-90 transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] group cursor-default">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]"></span>
                   </span>
                   <span>
-                    Visited by <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> times {uniqueVisitorCount !== null && <span className="text-[var(--muted)] opacity-80">({uniqueVisitorCount.toLocaleString()} unique devices)</span>}
+                    Visited <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> times {uniqueVisitorCount !== null && <span className="text-[var(--muted)] opacity-80">({uniqueVisitorCount.toLocaleString()} devices)</span>}
                   </span>
                 </span>
               </div>
@@ -1144,112 +1167,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Mobile Layout (Visible only on mobile when not forcing typing mode) */}
-      <div className={cn(forceMobileTyping ? "hidden" : "hidden max-md:flex", "flex-col flex-1 justify-between p-6 sm:p-8 relative z-10 text-center min-h-[calc(100dvh-20px)]")}>
-        {/* Top: Logo & Theme Toggle */}
-        <div className="w-full flex items-center justify-between">
-          <div className="flex items-center gap-2.5 cursor-default select-none">
-            <Image
-              src="/logo-v2.png"
-              alt="thock logo"
-              width={36}
-              height={36}
-              className="w-9 h-9 object-contain"
-            />
-            <span className="font-bold tracking-tight text-base text-[var(--foreground)]">
-              thock<span className="text-[var(--accent)]">.</span>
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setFeedbackOpen(true)}
-              className="px-3 py-1.5 text-[11px] font-semibold rounded-full bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
-            >
-              Feedback
-            </button>
-            <button
-              onClick={toggleDarkMode}
-              className="w-8 h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
-              title="Toggle Theme"
-              aria-label="Toggle Theme"
-            >
-              {isDark ? "🔆" : "🌙"}
-            </button>
-          </div>
-        </div>
-
-        {/* Middle content: Card for Laptop Nerds */}
-        <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full my-6">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="w-14 h-14 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-6 relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent animate-pulse" />
-            <span className="relative z-10">💻</span>
-          </motion.div>
-          
-          <motion.h2 
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.5 }}
-            className="text-xl font-bold tracking-tight text-[var(--foreground)]"
-          >
-            Designed for Laptop Nerds
-          </motion.h2>
-          
-          <motion.p 
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-[12px] text-[var(--muted)] mt-2 mb-4 max-w-[28ch] leading-relaxed"
-          >
-            thock. is a physical keyboard playground with real-time audio synthesis. Open on a laptop or connect a Bluetooth keyboard to type.
-          </motion.p>
-
-          <button
-            onClick={() => setForceMobileTyping(true)}
-            className="mb-8 px-4 py-2 text-xs font-bold rounded-xl bg-[var(--accent)] text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer button-lift"
-          >
-            ⌨️ Start Hardware Typing
-          </button>
-
-          {/* Interactive Quote Card */}
-          <motion.div
-            initial={{ y: 15, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            onClick={cycleMobileQuote}
-            className="glass-panel w-full p-6 rounded-[24px] border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] relative overflow-hidden cursor-pointer select-none group transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] hover:border-[var(--accent)]/20 shadow-md"
-          >
-            <div className="absolute top-3 right-4 text-[9px] text-[var(--muted)] opacity-60 flex items-center gap-1 font-bold uppercase tracking-wider">
-              <span>nerd quote</span>
-              <span className="animate-pulse">✨</span>
-            </div>
-            
-            <p className="text-sm font-semibold italic text-[var(--foreground)] leading-relaxed mt-4 text-left pr-4">
-              &ldquo;{mobileQuote}&rdquo;
-            </p>
-            
-            <div className="mt-6 flex justify-between items-center text-[10px] text-[var(--muted)] font-semibold uppercase tracking-wider">
-              <span className="group-hover:text-[var(--foreground)] transition-colors duration-200">Tap to refresh</span>
-              <span className="text-[var(--accent)] group-hover:translate-x-0.5 transition-transform duration-200">Next →</span>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Bottom footer hint */}
-        <motion.footer 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.75 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="text-[9px] font-bold text-[var(--muted)] tracking-wider uppercase opacity-75 pb-2"
-        >
-          designed for physical keyboards
-        </motion.footer>
-      </div>
 
       {/* Floating Delight Banner */}
       <AnimatePresence>

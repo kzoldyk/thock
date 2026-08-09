@@ -18,6 +18,8 @@ interface KeycapProps {
   activeColor: string
   labelColor: string
   labelActiveColor: string
+  onKeyPress?: (code: string, label?: string) => void
+  onKeyRelease?: (code: string) => void
 }
 
 const TRAVEL = 0.018
@@ -36,6 +38,8 @@ export function Keycap({
   activeColor,
   labelColor,
   labelActiveColor,
+  onKeyPress,
+  onKeyRelease,
 }: KeycapProps) {
   const groupRef = useRef<THREE.Group>(null)
   const matRef = useRef<THREE.MeshStandardMaterial>(null)
@@ -78,7 +82,20 @@ export function Keycap({
 
   return (
     <group rotation-x={rowAngle}>
-      <group ref={groupRef}>
+      <group
+        ref={groupRef}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          onKeyPress?.(def.code, def.label)
+        }}
+        onPointerUp={(e) => {
+          e.stopPropagation()
+          onKeyRelease?.(def.code)
+        }}
+        onPointerOut={() => {
+          onKeyRelease?.(def.code)
+        }}
+      >
         <RoundedBox
           args={[width, height, depth]}
           radius={0.007}
@@ -111,3 +128,4 @@ export function Keycap({
     </group>
   )
 }
+

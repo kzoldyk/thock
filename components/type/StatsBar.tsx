@@ -12,19 +12,21 @@ interface StatItemProps {
   value: number
   suffix?: string
   format?: (v: number) => string
+  hideOnMobile?: boolean
 }
 
-function StatItem({ label, value, suffix, format }: StatItemProps) {
+function StatItem({ label, value, suffix, format, hideOnMobile }: StatItemProps) {
   const fontFamily = useAppStore((s) => s.fontFamily)
   const fontClass = getFontClass(fontFamily)
 
   return (
     <div className={cn(
-      "glass-panel glass-glow flex flex-col items-center justify-center py-3 px-4 rounded-xl min-w-[100px] flex-1 select-none",
-      "transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 cursor-default"
+      "glass-panel glass-glow flex flex-col items-center justify-center py-1.5 xs:py-2 sm:py-3 px-1.5 xs:px-2.5 sm:px-4 rounded-lg xs:rounded-xl min-w-0 flex-1 select-none",
+      "transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 cursor-default",
+      hideOnMobile && "hidden sm:flex"
     )}>
       <span className={cn(
-        "text-[11px] font-bold tracking-widest text-[var(--muted)] uppercase mb-1.5 opacity-95",
+        "text-[8.5px] xs:text-[9.5px] sm:text-[11px] font-bold tracking-wider sm:tracking-widest text-[var(--muted)] uppercase mb-0.5 sm:mb-1.5 opacity-95",
         fontClass
       )}>
         {label}
@@ -32,11 +34,11 @@ function StatItem({ label, value, suffix, format }: StatItemProps) {
       <div className="flex items-baseline gap-0.5">
         <AnimatedNumber
           value={value}
-          className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-[var(--foreground)]"
+          className="text-sm xs:text-base sm:text-2xl font-bold tabular-nums tracking-tight text-[var(--foreground)]"
           format={format}
         />
         {suffix && (
-          <span className="text-xs font-semibold text-[var(--muted)]">{suffix}</span>
+          <span className="text-[9px] xs:text-[10px] sm:text-xs font-semibold text-[var(--muted)]">{suffix}</span>
         )}
       </div>
     </div>
@@ -65,16 +67,17 @@ export const StatsBar = memo(function StatsBar({ stats, sessionState }: Props) {
   const displayWpm = sessionState === "finished" ? stats.wpm : stats.liveWpm
 
   return (
-    <div className="w-full max-w-[900px] mx-auto px-8 my-4">
-      <div className="flex flex-wrap justify-between gap-3">
+    <div className="w-full max-w-[900px] mx-auto px-2 xs:px-4 sm:px-8 my-1 sm:my-3">
+      <div className="flex items-stretch justify-between gap-1 xs:gap-1.5 sm:gap-3">
         <StatItem label="WPM" value={displayWpm} />
         <StatItem label="Acc" value={stats.accuracy} suffix="%" />
-        <StatItem label="Raw" value={stats.raw} />
-        <StatItem label="Cons" value={stats.consistency} suffix="%" />
+        <StatItem label="Raw" value={stats.raw} hideOnMobile />
+        <StatItem label="Cons" value={stats.consistency} suffix="%" hideOnMobile />
         <StatItem label="Time" value={stats.elapsedMs} format={formatTime} />
         <StatItem label="Mistakes" value={stats.mistakes} />
-        <StatItem label="Streak" value={stats.streak} />
+        <StatItem label="Streak" value={stats.streak} hideOnMobile />
       </div>
     </div>
   )
 })
+

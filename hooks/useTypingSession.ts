@@ -40,6 +40,9 @@ export interface TypingSessionAPI {
   restart: () => void
   activeKeys: Set<string>
   emitKeyEvent: (code: string, type: "down" | "up") => void
+  pressVirtualKey: (code: string, label?: string) => void
+  releaseVirtualKey: (code: string) => void
+  handleDirectInput: (char: string) => void
   getHistory: () => StatsSample[]
 }
 
@@ -143,6 +146,32 @@ function emptySession(): TypingSessionState {
   }
 }
 
+function mapCodeToKey(code: string, label?: string): string | null {
+  if (code.startsWith("Key") && code.length === 4) {
+    return code[3].toLowerCase()
+  }
+  if (code.startsWith("Digit") && code.length === 6) {
+    return code[5]
+  }
+  if (code === "Space") return " "
+  if (code === "Backspace") return "Backspace"
+  if (code === "Tab") return "Tab"
+  if (code === "Escape") return "Escape"
+  if (code === "Minus") return "-"
+  if (code === "Equal") return "="
+  if (code === "BracketLeft") return "["
+  if (code === "BracketRight") return "]"
+  if (code === "Backslash") return "\\"
+  if (code === "Semicolon") return ";"
+  if (code === "Quote") return "'"
+  if (code === "Comma") return ","
+  if (code === "Period") return "."
+  if (code === "Slash") return "/"
+  if (code === "Backquote") return "`"
+  if (label && label.length === 1) return label.toLowerCase()
+  return null
+}
+
 export function useTypingSession(
   keyboardRef: React.RefObject<{ pressKey: (code: string) => void; releaseKey: (code: string) => void } | null>,
   layoutId: LayoutId,
@@ -154,6 +183,7 @@ export function useTypingSession(
   const lastSampleAtRef = useRef(0)
   const activeKeysRef = useRef<Set<string>>(new Set())
   const [activeKeysView, setActiveKeysView] = useState<Set<string>>(() => new Set())
+  const activeKeyTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const statsRef = useRef<TypingStats>({
     wpm: 0, averageWpm: 0, liveWpm: 0, raw: 0, accuracy: 100, consistency: 100,
     mistakes: 0, wordMistakes: 0, streak: 0, elapsedMs: 0,
@@ -234,7 +264,6 @@ export function useTypingSession(
     // Flow mode logic
     const flowThreshold = Math.min(20000, thresholdMs * 0.67)
     if (s.state === "typing" && elapsed >= flowThreshold && !useAppStore.getState().flowMode) {
-      // Check if they are still typing actively (last keystroke within 3s)
       const lastStroke = s.keystrokes[s.keystrokes.length - 1];
       if (lastStroke && (now - lastStroke.timestamp < 3000)) {
          useAppStore.getState().setFlowMode(true);
@@ -267,35 +296,22 @@ export function useTypingSession(
     rerender()
   }, [rerender])
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
+  const processKeystroke = useCallback(
+    (key: string, code: string) => {
       const isSettingsOpen = useAppStore.getState().settingsOpen
       if (disabled || isSettingsOpen) {
         return
       }
 
-      // Ignore key events when typing inside inputs or textareas
-      const target = e.target as HTMLElement | null
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
-        return
-      }
-
-      if (e.repeat) return
-      const { key, code } = e
-      if (!key) return
       const s = sessionRef.current
 
-      if (code === "Tab") {
-        e.preventDefault()
+      if (code === "Tab" || key === "Tab") {
         const seed = Date.now()
         sessionRef.current = freshSession(typingMode, seed, complexWords)
-        timerRef.current = null
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
         activeKeysRef.current.clear()
         setActiveKeysView(new Set())
         resetStatsBuffers()
@@ -305,14 +321,19 @@ export function useTypingSession(
         return
       }
 
-      if (["Control", "Shift", "Alt", "Meta"].includes(key)) {
-        keyboardRef.current?.pressKey(e.code)
+      if (code === "Escape" || key === "Escape") {
+        useAppStore.getState().setSettingsOpen(!useAppStore.getState().settingsOpen)
         return
       }
 
-      e.preventDefault()
+      if (["Control", "Shift", "Alt", "Meta", "ControlLeft", "ControlRight", "ShiftLeft", "ShiftRight", "AltLeft", "AltRight", "MetaLeft", "MetaRight"].includes(code) || ["Control", "Shift", "Alt", "Meta"].includes(key)) {
+        keyboardRef.current?.pressKey(code)
+        activeKeysRef.current.add(code)
+        setActiveKeysView(new Set(activeKeysRef.current))
+        return
+      }
 
-      if (key.length === 1 || key === "Backspace" || code === "Space") {
+      if (key.length === 1 || key === "Backspace" || code === "Backspace" || code === "Space" || key === " ") {
         // Automatically blur any active button/link/select to return focus to the page for typing
         if (
           typeof document !== "undefined" &&
@@ -330,7 +351,6 @@ export function useTypingSession(
         }
 
         keyboardRef.current?.pressKey(code)
-
         activeKeysRef.current.add(code)
         setActiveKeysView(new Set(activeKeysRef.current))
 
@@ -381,9 +401,11 @@ export function useTypingSession(
 
           // Easter Egg Checks
           if (result.result.action === "space") {
-            const completedWord = s.targetText[s.wordIndex].toUpperCase();
+            const completedWord = s.targetText[s.wordIndex]?.toUpperCase() || ""
             if (!result.result.wordMistake) {
-               s.words[s.wordIndex].isPerfect = true;
+               if (s.words[s.wordIndex]) {
+                  s.words[s.wordIndex].isPerfect = true
+               }
                useAppStore.getState().addExplosion();
                s.perfectWordCount++;
                if (s.perfectWordCount === 10) {
@@ -470,13 +492,82 @@ export function useTypingSession(
     [keyboardRef, getPanValue, computeLatestStats, rerender, resetStatsBuffers, typingMode, complexWords, disabled],
   )
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown)
-    const handleKeyUp = (e: KeyboardEvent) => {
-      // Ignore key events when typing inside inputs or textareas
+  const processKeyRelease = useCallback(
+    (code: string) => {
+      keyboardRef.current?.releaseKey(code)
+      if (activeKeysRef.current.has(code)) {
+        activeKeysRef.current.delete(code)
+        setActiveKeysView(new Set(activeKeysRef.current))
+      }
+      if (useAppStore.getState().soundEnabled) {
+        const pan = getPanValue(code)
+        audioEngine.playUp(code, pan)
+      }
+    },
+    [keyboardRef, getPanValue],
+  )
+
+  const pressVirtualKey = useCallback(
+    (code: string, label?: string) => {
+      const key = mapCodeToKey(code, label)
+      if (!key) return
+
+      // Clear any pending release timeout for this key
+      if (activeKeyTimeoutsRef.current.has(code)) {
+        clearTimeout(activeKeyTimeoutsRef.current.get(code))
+        activeKeyTimeoutsRef.current.delete(code)
+      }
+
+      processKeystroke(key, code)
+
+      // Fallback auto-release timeout (130ms) if pointerup/touchend is cancelled
+      const timeoutId = setTimeout(() => {
+        processKeyRelease(code)
+        activeKeyTimeoutsRef.current.delete(code)
+      }, 130)
+      activeKeyTimeoutsRef.current.set(code, timeoutId)
+    },
+    [processKeystroke, processKeyRelease],
+  )
+
+  const releaseVirtualKey = useCallback(
+    (code: string) => {
+      if (activeKeyTimeoutsRef.current.has(code)) {
+        clearTimeout(activeKeyTimeoutsRef.current.get(code))
+        activeKeyTimeoutsRef.current.delete(code)
+      }
+      processKeyRelease(code)
+    },
+    [processKeyRelease],
+  )
+
+  const handleDirectInput = useCallback(
+    (char: string) => {
+      if (!char) return
+      let code = "Key" + char.toUpperCase()
+      if (char === " ") code = "Space"
+      else if (char === "Backspace") code = "Backspace"
+      else if (/^\d$/.test(char)) code = "Digit" + char
+      else if (char === "-") code = "Minus"
+      else if (char === "=") code = "Equal"
+      else if (char === ",") code = "Comma"
+      else if (char === ".") code = "Period"
+      else if (char === ";") code = "Semicolon"
+      else if (char === "'") code = "Quote"
+      else if (char === "/") code = "Slash"
+
+      pressVirtualKey(code, char)
+    },
+    [pressVirtualKey],
+  )
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      // Ignore key events when typing inside actual form inputs
       const target = e.target as HTMLElement | null
       if (
         target &&
+        !target.dataset.typingInput &&
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
           target.tagName === "SELECT" ||
@@ -485,11 +576,35 @@ export function useTypingSession(
         return
       }
 
-      keyboardRef.current?.releaseKey(e.code)
-      if (activeKeysRef.current.has(e.code)) {
-        activeKeysRef.current.delete(e.code)
-        setActiveKeysView(new Set(activeKeysRef.current))
+      if (e.repeat) return
+      const { key, code } = e
+      if (!key) return
+
+      if (["Tab", "Space"].includes(code) || key.length === 1 || key === "Backspace") {
+        e.preventDefault()
       }
+
+      processKeystroke(key, code)
+    },
+    [processKeystroke],
+  )
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown)
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        !target.dataset.typingInput &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      processKeyRelease(e.code)
     }
     const handleBlur = () => {
       activeKeysRef.current.clear()
@@ -502,13 +617,16 @@ export function useTypingSession(
       window.removeEventListener("keyup", handleKeyUp)
       window.removeEventListener("blur", handleBlur)
     }
-  }, [handleKeyDown, keyboardRef])
+  }, [handleKeyDown, processKeyRelease])
 
   useEffect(() => {
+    const keyTimeouts = activeKeyTimeoutsRef.current
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current)
       }
+      keyTimeouts.forEach((t) => clearTimeout(t))
+      keyTimeouts.clear()
     }
   }, [])
 
@@ -560,6 +678,9 @@ export function useTypingSession(
     restart,
     activeKeys: activeKeysView,
     emitKeyEvent,
+    pressVirtualKey,
+    releaseVirtualKey,
+    handleDirectInput,
     getHistory: () => historyRef.current.toArray(),
   }
 }

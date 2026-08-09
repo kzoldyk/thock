@@ -23,6 +23,8 @@ interface KeyboardSceneInnerProps {
   layoutId: LayoutId
   themeId: string
   pressedRef: React.MutableRefObject<Record<string, number>>
+  onKeyPress?: (code: string, label?: string) => void
+  onKeyRelease?: (code: string) => void
 }
 
 const UNIT = 0.06
@@ -48,7 +50,7 @@ function getKeyType(code: string): "esc" | "modifier" | "number" | "alpha" {
   return "alpha"
 }
 
-function KeyboardSceneInner({ layoutId, themeId, pressedRef }: KeyboardSceneInnerProps) {
+function KeyboardSceneInner({ layoutId, themeId, pressedRef, onKeyPress, onKeyRelease }: KeyboardSceneInnerProps) {
   const shakeRef = useRef({ x: 0, y: 0, t: 0 })
 
   useEffect(() => {
@@ -191,6 +193,8 @@ function KeyboardSceneInner({ layoutId, themeId, pressedRef }: KeyboardSceneInne
               activeColor={theme?.keycapActive || "#fff5f0"}
               labelColor={labelColor}
               labelActiveColor={theme?.labelActive || "#ff7a45"}
+              onKeyPress={onKeyPress}
+              onKeyRelease={onKeyRelease}
             />
           </group>
         )
@@ -199,33 +203,46 @@ function KeyboardSceneInner({ layoutId, themeId, pressedRef }: KeyboardSceneInne
   )
 }
 
-export const KeyboardScene = forwardRef<KeyboardHandle, { layoutId: LayoutId; themeId: string }>(
-  function KeyboardScene({ layoutId, themeId }, ref) {
-    const pressedRef = useRef<Record<string, number>>({})
+export const KeyboardScene = forwardRef<
+  KeyboardHandle,
+  {
+    layoutId: LayoutId
+    themeId: string
+    onKeyPress?: (code: string, label?: string) => void
+    onKeyRelease?: (code: string) => void
+  }
+>(function KeyboardScene({ layoutId, themeId, onKeyPress, onKeyRelease }, ref) {
+  const pressedRef = useRef<Record<string, number>>({})
 
-    useImperativeHandle(ref, () => ({
-      pressKey(code: string) {
-        pressedRef.current[code] = 1
-      },
-      releaseKey(code: string) {
-        pressedRef.current[code] = 0
-      },
-    }))
+  useImperativeHandle(ref, () => ({
+    pressKey(code: string) {
+      pressedRef.current[code] = 1
+    },
+    releaseKey(code: string) {
+      pressedRef.current[code] = 0
+    },
+  }))
 
-    return (
-      <div className="w-full h-[280px] sm:h-[360px]">
-        <Canvas
-          camera={{ position: [0, 0.35, 0.55], fov: 38, near: 0.01, far: 10 }}
-          dpr={[1, 1.5]}
-          shadows
-          frameloop="always"
-          gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.15 }}
-        >
-          <Suspense fallback={null}>
-            <KeyboardSceneInner layoutId={layoutId} themeId={themeId} pressedRef={pressedRef} />
-          </Suspense>
-        </Canvas>
-      </div>
-    )
-  },
-)
+  return (
+    <div className="w-full h-[190px] xs:h-[230px] sm:h-[320px] md:h-[360px] touch-manipulation">
+      <Canvas
+        camera={{ position: [0, 0.35, 0.55], fov: 38, near: 0.01, far: 10 }}
+        dpr={[1, 1.5]}
+        shadows
+        frameloop="always"
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.15 }}
+      >
+        <Suspense fallback={null}>
+          <KeyboardSceneInner
+            layoutId={layoutId}
+            themeId={themeId}
+            pressedRef={pressedRef}
+            onKeyPress={onKeyPress}
+            onKeyRelease={onKeyRelease}
+          />
+        </Suspense>
+      </Canvas>
+    </div>
+  )
+})
+

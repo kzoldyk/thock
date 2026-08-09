@@ -184,9 +184,9 @@ export const WordsDisplay = memo(function WordsDisplay({
     <div
       ref={containerRef}
       className={cn(
-        "w-full max-w-[900px] mx-auto px-6 sm:px-12 select-none overflow-hidden relative transition-all duration-300",
-        showKeyboard ? "my-2 sm:my-3" : "my-4 sm:my-6",
-        paragraphMode ? "h-[170px] sm:h-[190px]" : "h-auto py-2"
+        "w-full max-w-[900px] mx-auto px-3 sm:px-12 select-none overflow-hidden relative transition-all duration-300",
+        showKeyboard ? "my-1 sm:my-3" : "my-2 sm:my-6",
+        paragraphMode ? "h-[130px] sm:h-[190px]" : "h-auto py-1 sm:py-2"
       )}
       style={
         paragraphMode
@@ -207,9 +207,9 @@ export const WordsDisplay = memo(function WordsDisplay({
       <div
         ref={scrollingRowRef}
         className={cn(
-          "text-3xl sm:text-4xl leading-relaxed tracking-tight text-[var(--foreground)] transition-transform duration-200 ease-out relative",
+          "text-2xl xs:text-3xl sm:text-4xl leading-relaxed tracking-tight text-[var(--foreground)] transition-transform duration-200 ease-out relative",
           paragraphMode
-            ? "flex flex-wrap justify-start items-baseline gap-y-2"
+            ? "flex flex-wrap justify-start items-baseline gap-y-1.5 sm:gap-y-2"
             : "flex flex-nowrap items-center whitespace-nowrap",
           fontClass
         )}
@@ -242,3 +242,4 @@ export const WordsDisplay = memo(function WordsDisplay({
     </div>
   )
 })
+
