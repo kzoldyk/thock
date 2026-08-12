@@ -238,8 +238,18 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
     return [];
   }
 
-  // 11. Select count of unique devices: SELECT COUNT(*) as count FROM unique_devices
+  // 11. Select count or sum of unique devices
+  if (sqlNormalized.includes("FROM unique_devices") && sqlNormalized.includes("SUM(visit_count)")) {
+    const total = g.__thock_unique_devices.reduce((acc: number, d: any) => acc + (d.visit_count || 1), 0);
+    return [{ total, count: total }];
+  }
+
   if (sqlNormalized.includes("FROM unique_devices") && sqlNormalized.includes("COUNT(*)")) {
+    if (sqlNormalized.includes("last_visited_at >=")) {
+      const cutoff = params[0] || (Date.now() - 5 * 60 * 1000);
+      const onlineDevices = g.__thock_unique_devices.filter((d: any) => (d.last_visited_at || 0) >= cutoff);
+      return [{ count: onlineDevices.length }];
+    }
     return [{ count: g.__thock_unique_devices.length }];
   }
 

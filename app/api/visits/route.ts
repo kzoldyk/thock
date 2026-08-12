@@ -2,32 +2,18 @@ import { NextResponse, userAgent } from "next/server";
 import { db } from "@/lib/db";
 
 export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const isLocal = searchParams.get("local") === "true";
-  
-  // Note: visits endpoint requires trailing slash, visits/up does not
-  const url = isLocal 
-    ? "https://api.counterapi.dev/v1/thock-typing/visits/" 
-    : "https://api.counterapi.dev/v1/thock-typing/visits/up";
+  const BASE_VISITS = 1000;
+  const BASE_ONLINE = 4;
+  const ONLINE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
-  let totalCount = 0;
-  let uniqueCount = 0;
-
-  try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json();
-      totalCount = data.count;
-    }
-  } catch (err) {
-    console.error("[api-visits] error fetching counterapi:", err);
-  }
+  let totalCount = BASE_VISITS;
+  let onlineCount = BASE_ONLINE;
 
   try {
     const body = await request.json().catch(() => ({}));
+    const now = Date.now();
+
     if (body.deviceId) {
-      const now = Date.now();
-      
       const { os, browser, device } = userAgent(request);
       const rawUserAgent = request.headers.get("user-agent") || "";
       const ipAddress = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
@@ -58,14 +44,25 @@ export async function POST(request: Request) {
       ]);
     }
     
-    // Get unique device count
-    const result = await db.query<{ count: number }>("SELECT COUNT(*) as count FROM unique_devices");
-    if (result && result.length > 0) {
-      uniqueCount = result[0].count;
-    }
+    // 1. Get total visits from database (offset with +1000)
+    const visitsResult = await db.query<{ total: number }>(
+      "SELECT COALESCE(SUM(visit_count), 0) as total FROM unique_devices"
+    );
+    const actualVisits = visitsResult && visitsResult.length > 0 ? (visitsResult[0].total || 0) : 0;
+    totalCount = BASE_VISITS + actualVisits;
+
+    // 2. Get online users (active in the last 5 minutes, offset with +4)
+    const onlineCutoff = now - ONLINE_WINDOW_MS;
+    const onlineResult = await db.query<{ count: number }>(
+      "SELECT COUNT(*) as count FROM unique_devices WHERE last_visited_at >= ?",
+      [onlineCutoff]
+    );
+    const actualOnline = onlineResult && onlineResult.length > 0 ? (onlineResult[0].count || 0) : 0;
+    onlineCount = BASE_ONLINE + actualOnline;
   } catch (err) {
     console.error("[api-visits] error with DB:", err);
   }
 
-  return NextResponse.json({ count: totalCount, uniqueCount });
+  return NextResponse.json({ count: totalCount, onlineCount });
 }
+

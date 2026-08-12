@@ -15,7 +15,10 @@ export async function GET() {
       return NextResponse.json({
         summary: {
           totalVisitors: 0,
-          totalVisits: 0,
+          totalVisits: 1000,
+          actualVisits: 0,
+          onlineUsers: 4,
+          actualOnlineUsers: 0,
           avgVisits: 0,
           returnRate: 0,
         },
@@ -31,9 +34,16 @@ export async function GET() {
       });
     }
 
+    const BASE_VISITS = 1000;
+    const BASE_ONLINE = 4;
+    const ONLINE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+    const onlineCutoff = now - ONLINE_WINDOW_MS;
+
     const totalVisitors = devices.length;
-    let totalVisits = 0;
+    let actualVisits = 0;
     let returningVisitors = 0;
+    let actualOnlineDevices = 0;
 
     const osCount: Record<string, number> = {};
     const browserCount: Record<string, number> = {};
@@ -41,9 +51,14 @@ export async function GET() {
     const countryCount: Record<string, number> = {};
 
     for (const d of devices) {
-      totalVisits += d.visit_count || 1;
-      if ((d.visit_count || 1) > 1) {
+      const vCount = d.visit_count || 1;
+      actualVisits += vCount;
+      if (vCount > 1) {
         returningVisitors++;
+      }
+
+      if ((d.last_visited_at || 0) >= onlineCutoff) {
+        actualOnlineDevices++;
       }
 
       // OS count
@@ -63,13 +78,15 @@ export async function GET() {
       countryCount[country] = (countryCount[country] || 0) + 1;
     }
 
-    const avgVisits = Number((totalVisits / totalVisitors).toFixed(1));
+    const totalVisits = BASE_VISITS + actualVisits;
+    const onlineUsers = BASE_ONLINE + actualOnlineDevices;
+    const avgVisits = Number((actualVisits / totalVisitors).toFixed(1));
     const returnRate = Number(((returningVisitors / totalVisitors) * 100).toFixed(1));
+
 
     // Formulate daily trend data for the last 30 days
     const dayMs = 24 * 60 * 60 * 1000;
     const dailyData: Record<string, { date: string; visits: number; visitors: number }> = {};
-    const now = Date.now();
 
     // Pre-populate last 30 days in order
     for (let i = 29; i >= 0; i--) {
@@ -213,12 +230,13 @@ export async function GET() {
         }
       }
 
+      const userLastActive = u.last_visited_at || u.created_at;
       return {
         userId: u.user_id,
         username: u.username,
         isGuest: u.is_guest === 1,
         createdAt: u.created_at,
-        lastVisitedAt: u.last_visited_at || u.created_at,
+        lastVisitedAt: userLastActive,
         visitCount: u.visit_count,
         ipAddress: anonymizedIp,
         os: u.os || "Unknown",
@@ -226,6 +244,7 @@ export async function GET() {
         deviceType: u.device_type || "desktop",
         country: u.country || "Unknown",
         userAgent: u.user_agent || "N/A",
+        isOnline: userLastActive >= onlineCutoff,
       };
     });
 
@@ -233,6 +252,9 @@ export async function GET() {
       summary: {
         totalVisitors,
         totalVisits,
+        actualVisits,
+        onlineUsers,
+        actualOnlineUsers: actualOnlineDevices,
         avgVisits,
         returnRate,
       },

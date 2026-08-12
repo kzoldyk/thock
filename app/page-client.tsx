@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { KeyboardScene, type KeyboardHandle } from "@/components/keyboard/KeyboardScene"
 import { Keyboard2D } from "@/components/keyboard/Keyboard2D"
@@ -547,7 +548,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("Practice")
   const [windowFocused, setWindowFocused] = useState(true)
   const [visitorCount, setVisitorCount] = useState<number | null>(null)
-  const [uniqueVisitorCount, setUniqueVisitorCount] = useState<number | null>(null)
+  const [onlineUsersCount, setOnlineUsersCount] = useState<number | null>(null)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null)
   const [authOpen, setAuthOpen] = useState(false)
@@ -715,29 +716,37 @@ export default function Home() {
   }, [switchPackId])
 
   useEffect(() => {
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    
     let deviceId = localStorage.getItem("thock_device_id")
     if (!deviceId) {
       deviceId = crypto.randomUUID()
       localStorage.setItem("thock_device_id", deviceId)
     }
 
-    fetch(`/api/visits?local=${isLocal}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data && typeof data.count === "number") {
-          setVisitorCount(data.count)
+    const recordVisit = async () => {
+      try {
+        const res = await fetch("/api/visits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceId })
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data && typeof data.count === "number") {
+            setVisitorCount(data.count)
+          }
+          if (data && typeof data.onlineCount === "number") {
+            setOnlineUsersCount(data.onlineCount)
+          }
         }
-        if (data && typeof data.uniqueCount === "number") {
-          setUniqueVisitorCount(data.uniqueCount)
-        }
-      })
-      .catch(err => console.warn("[counter] failed to fetch visitor count:", err))
+      } catch (err) {
+        console.warn("[counter] failed to fetch visitor/online count:", err)
+      }
+    }
+
+    recordVisit()
+    // Heartbeat interval to keep presence updated and refresh online count
+    const interval = setInterval(recordVisit, 45000)
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
@@ -1152,15 +1161,25 @@ export default function Home() {
             </div>
             {visitorCount !== null && (
               <div className="mt-2 sm:mt-4 flex items-center justify-center gap-2 select-none">
-                <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-medium tracking-normal normal-case border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] opacity-90 transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] group cursor-default">
+                <Link
+                  href="/analytics"
+                  className="inline-flex items-center gap-2 px-2.5 sm:px-3.5 py-1 rounded-full text-[10px] sm:text-[11px] font-medium tracking-normal normal-case border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] text-[var(--foreground)] opacity-90 transition-all duration-300 hover:scale-[1.03] hover:border-[var(--accent)] hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)] group cursor-pointer"
+                  title="View Real-Time Analytics"
+                >
                   <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent)]"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
                   <span>
-                    Visited <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> times {uniqueVisitorCount !== null && <span className="text-[var(--muted)] opacity-80">({uniqueVisitorCount.toLocaleString()} devices)</span>}
+                    Visited <span className="font-bold text-[var(--accent)]">{visitorCount.toLocaleString()}</span> times
+                    {onlineUsersCount !== null && (
+                      <>
+                        <span className="mx-1.5 opacity-40">·</span>
+                        <span className="font-semibold text-emerald-500">{onlineUsersCount.toLocaleString()} online</span>
+                      </>
+                    )}
                   </span>
-                </span>
+                </Link>
               </div>
             )}
           </footer>

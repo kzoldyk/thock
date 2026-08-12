@@ -25,6 +25,9 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 interface Summary {
   totalVisitors: number;
   totalVisits: number;
+  actualVisits?: number;
+  onlineUsers: number;
+  actualOnlineUsers?: number;
   avgVisits: number;
   returnRate: number;
 }
@@ -66,6 +69,7 @@ interface VisitedUser {
   deviceType: string;
   country: string;
   userAgent: string;
+  isOnline?: boolean;
 }
 
 interface AnalyticsData {
@@ -117,7 +121,7 @@ const formatDate = (timestamp: number) => {
   });
 };
 
-function ThemeWrapper({ children, theme, fontClass }: { children: React.ReactNode, theme: any, fontClass: string }) {
+function ThemeWrapper({ children, theme, fontClass }: { children: React.ReactNode, theme: (typeof appThemes)[0], fontClass: string }) {
   return (
     <div
       className={cn(
@@ -195,6 +199,8 @@ export default function AnalyticsDashboard() {
   const [filterUserType, setFilterUserType] = useState<"all" | "members" | "guests">("all");
   const [sortBy, setSortBy] = useState<"lastVisited" | "visitCount" | "createdAt">("lastVisited");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null);
+  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<{
     index: number;
     x: number;
@@ -248,6 +254,47 @@ export default function AnalyticsDashboard() {
       }
     };
     load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const initUser = async () => {
+      try {
+        let devId = localStorage.getItem("thock_device_id");
+        if (!devId) {
+          devId = crypto.randomUUID();
+          localStorage.setItem("thock_device_id", devId);
+        }
+        if (active) setCurrentDeviceId(devId);
+
+        const meRes = await fetch("/api/auth/me");
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (active && meData?.user) {
+            setCurrentUser(meData.user);
+            return;
+          }
+        }
+
+        const guestRes = await fetch("/api/auth/guest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceId: devId }),
+        });
+        if (guestRes.ok) {
+          const guestData = await guestRes.json();
+          if (active && guestData?.user) {
+            setCurrentUser(guestData.user);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading user in analytics:", err);
+      }
+    };
+    initUser();
     return () => {
       active = false;
     };
@@ -379,8 +426,13 @@ export default function AnalyticsDashboard() {
     return matchesSearch;
   });
 
-  // Sort users
+  // Sort users (pin current user to top)
   const sortedUsers = [...searchedUsers].sort((a, b) => {
+    const isACurrent = currentUser && (a.userId === currentUser.id || a.username === currentUser.username);
+    const isBCurrent = currentUser && (b.userId === currentUser.id || b.username === currentUser.username);
+    if (isACurrent && !isBCurrent) return -1;
+    if (!isACurrent && isBCurrent) return 1;
+
     let comparison = 0;
     if (sortBy === "lastVisited") {
       comparison = a.lastVisitedAt - b.lastVisitedAt;
@@ -477,11 +529,22 @@ export default function AnalyticsDashboard() {
               Back to Typing Test
             </Link>
             <h1 className="text-3xl font-extrabold tracking-tight font-sans">
-              Device Analytics
+              Live Analytics & Visitors
             </h1>
             <p className="text-[var(--muted)] text-sm mt-1">
-              Real-time traffic and hardware configurations visiting Thock
+              Real-time traffic, active users, and system metrics for Thock
             </p>
+            {currentUser && (
+              <div className="inline-flex items-center gap-2 mt-2.5 px-3 py-1 rounded-xl bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-xs text-[var(--foreground)]">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[var(--muted)]">Your Session:</span>
+                <span className="font-bold text-[var(--accent)]">{currentUser.username}</span>
+                <span className="bg-[var(--accent)] text-[var(--background)] text-[9px] font-black px-1.5 py-0.5 rounded uppercase">You</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col md:flex-row items-end md:items-center gap-3">
@@ -553,35 +616,39 @@ export default function AnalyticsDashboard() {
           {[
             {
               label: "Total Visits",
-              value: totalVisits.toLocaleString(),
-              desc: "Aggregate site views",
+              value: (data.summary.totalVisits ?? 1000).toLocaleString(),
+              desc: `Base 1,000 + ${data.summary.actualVisits ?? 0} recorded visits`,
               icon: Activity,
               color: "text-emerald-500",
               bg: "bg-emerald-500/10",
+              isLive: false,
             },
             {
-              label: "Unique Devices",
-              value: totalVisitors.toLocaleString(),
-              desc: "Identified device hardware",
-              icon: Cpu,
-              color: "text-blue-500",
-              bg: "bg-blue-500/10",
+              label: "Online Users",
+              value: (data.summary.onlineUsers ?? 4).toLocaleString(),
+              desc: `Base 4 + ${data.summary.actualOnlineUsers ?? 0} live now`,
+              icon: Globe,
+              color: "text-emerald-400",
+              bg: "bg-emerald-500/10",
+              isLive: true,
             },
             {
-              label: "Avg. Views/Device",
+              label: "Avg. Views/Visitor",
               value: avgVisits.toFixed(1),
-              desc: "Frequency index",
+              desc: "Frequency per unique visitor",
               icon: Clock,
               color: "text-amber-500",
               bg: "bg-amber-500/10",
+              isLive: false,
             },
             {
               label: "Return Rate",
               value: `${returnRate}%`,
-              desc: "Devices visited > 1 times",
+              desc: "Visitors returned > 1 times",
               icon: UserCheck,
               color: "text-purple-500",
               bg: "bg-purple-500/10",
+              isLive: false,
             },
           ].map((card, index) => {
             const Icon = card.icon;
@@ -595,9 +662,17 @@ export default function AnalyticsDashboard() {
                     <span className="text-[var(--muted)] text-xs font-medium uppercase tracking-wider block">
                       {card.label}
                     </span>
-                    <span className="text-2xl md:text-3xl font-extrabold tracking-tight mt-1.5 block">
-                      {card.value}
-                    </span>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-2xl md:text-3xl font-extrabold tracking-tight block">
+                        {card.value}
+                      </span>
+                      {card.isLive && (
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className={`p-2.5 rounded-xl ${card.bg} ${card.color}`}>
                     <Icon className="w-5 h-5" />
@@ -662,7 +737,7 @@ export default function AnalyticsDashboard() {
                 <div>
                   <h3 className="font-bold text-lg font-sans">Traffic Overview</h3>
                   <p className="text-xs text-[var(--muted)] mt-0.5">
-                    Daily comparison of unique devices versus total page visits
+                    Daily trend of active users versus total page visits
                   </p>
                 </div>
                 <div className="flex items-center gap-4 text-xs font-medium">
@@ -672,7 +747,7 @@ export default function AnalyticsDashboard() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-3 h-1.5 bg-[var(--muted)] rounded-full inline-block" />
-                    Unique Visitors
+                    Active Users
                   </span>
                 </div>
               </div>
@@ -999,10 +1074,26 @@ export default function AnalyticsDashboard() {
                     </tr>
                   ) : (
                     filteredSessions.map((session, i) => {
+                      const isCurrentDevice = currentDeviceId ? session.deviceId === currentDeviceId : false;
                       return (
-                        <tr key={i} className="hover:bg-[var(--chrome-surface-soft)]/30 transition-colors">
+                        <tr
+                          key={i}
+                          className={cn(
+                            "transition-colors",
+                            isCurrentDevice
+                              ? "bg-[var(--accent)]/10 border-l-2 border-l-[var(--accent)] hover:bg-[var(--accent)]/15"
+                              : "hover:bg-[var(--chrome-surface-soft)]/30"
+                          )}
+                        >
                           <td className="p-4 font-mono font-semibold text-[var(--accent)]">
-                            {session.ipAddress}
+                            <span className="inline-flex items-center gap-1.5">
+                              {session.ipAddress}
+                              {isCurrentDevice && (
+                                <span className="px-1.5 py-0.5 rounded bg-[var(--accent)] text-[var(--background)] font-black text-[9px] uppercase tracking-wider">
+                                  You
+                                </span>
+                              )}
+                            </span>
                           </td>
                           <td className="p-4">
                             <span className="flex items-center gap-1.5">
@@ -1093,7 +1184,7 @@ export default function AnalyticsDashboard() {
                   <span className="text-[10px] text-[var(--muted)] font-semibold uppercase px-1">Sort:</span>
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
+                    onChange={(e) => setSortBy(e.target.value as "lastVisited" | "visitCount" | "createdAt")}
                     className="bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] rounded-lg px-2.5 py-1 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]/50 transition-colors h-[32px] font-semibold cursor-pointer"
                   >
                     <option value="lastVisited">Last Active</option>
@@ -1119,26 +1210,53 @@ export default function AnalyticsDashboard() {
                   No visited users found.
                 </div>
               ) : (
-                sortedUsers.map((user) => (
-                  <div
-                    key={user.userId}
-                    className="glass-panel p-5 rounded-2xl border-[var(--chrome-border)] hover:border-[var(--accent)]/30 transition-all duration-300 flex flex-col justify-between group"
-                  >
-                    <div className="flex items-center gap-3.5 mb-4">
-                      <UserAvatar username={user.username} size="lg" />
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-sm truncate" title={user.username}>
-                          {user.username}
-                        </h4>
-                        <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-full mt-1 ${
-                          user.isGuest
-                            ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                            : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                        }`}>
-                          {user.isGuest ? "Guest" : "Member"}
-                        </span>
+                sortedUsers.map((user) => {
+                  const isCurrentUser = currentUser ? (user.userId === currentUser.id || user.username === currentUser.username) : false;
+                  return (
+                    <div
+                      key={user.userId}
+                      className={cn(
+                        "glass-panel p-5 rounded-2xl border transition-all duration-300 flex flex-col justify-between group relative overflow-hidden",
+                        isCurrentUser
+                          ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/30 bg-[var(--accent)]/5 shadow-[0_0_25px_rgba(var(--accent-rgb),0.15)]"
+                          : "border-[var(--chrome-border)] hover:border-[var(--accent)]/30"
+                      )}
+                    >
+                      {isCurrentUser && (
+                        <div className="absolute top-0 right-0">
+                          <span className="bg-[var(--accent)] text-[var(--background)] text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl-xl tracking-wider shadow-sm">
+                            YOU (Current)
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3.5 mb-4">
+                        <div className="relative">
+                          <UserAvatar username={user.username} size="lg" />
+                          {user.isOnline && (
+                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[var(--background)] ring-1 ring-emerald-400/50"></span>
+                          )}
+                        </div>
+                        <div className="min-w-0 pr-6">
+                          <h4 className="font-bold text-sm truncate" title={user.username}>
+                            {user.username}
+                          </h4>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                              user.isGuest
+                                ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                            }`}>
+                              {user.isGuest ? "Guest" : "Member"}
+                            </span>
+                            {user.isOnline && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Online
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
                     <div className="border-t border-[var(--chrome-border)]/50 pt-3 mt-auto space-y-2 text-[11px]">
                       <div className="flex justify-between items-center text-[var(--muted)]">
@@ -1198,8 +1316,9 @@ export default function AnalyticsDashboard() {
                       </div>
                     </div>
                   </div>
-                ))
-              )}
+                );
+              })
+            )}
             </div>
           </div>
         )}
