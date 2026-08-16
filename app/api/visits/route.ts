@@ -3,11 +3,11 @@ import { db } from "@/lib/db";
 
 export async function POST(request: Request) {
   const BASE_VISITS = 1000;
-  const BASE_ONLINE = 4;
   const ONLINE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+  const randomBase = Math.floor(Math.random() * 4) + 1; // Random 1-4 active users
 
   let totalCount = BASE_VISITS;
-  let onlineCount = BASE_ONLINE;
+  let onlineCount = randomBase;
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -51,14 +51,14 @@ export async function POST(request: Request) {
     const actualVisits = visitsResult && visitsResult.length > 0 ? (visitsResult[0].total || 0) : 0;
     totalCount = BASE_VISITS + actualVisits;
 
-    // 2. Get online users (active in the last 5 minutes, offset with +4)
+    // 2. Get online users (active in the last 5 minutes, offset with random 1-4)
     const onlineCutoff = now - ONLINE_WINDOW_MS;
     const onlineResult = await db.query<{ count: number }>(
       "SELECT COUNT(*) as count FROM unique_devices WHERE last_visited_at >= ?",
       [onlineCutoff]
     );
     const actualOnline = onlineResult && onlineResult.length > 0 ? (onlineResult[0].count || 0) : 0;
-    onlineCount = BASE_ONLINE + actualOnline;
+    onlineCount = randomBase + actualOnline;
   } catch (err) {
     console.error("[api-visits] error with DB:", err);
   }

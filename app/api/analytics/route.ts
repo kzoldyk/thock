@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-export async function GET() {
+const ANALYTICS_PASSWORD = process.env.ANALYTICS_PASSWORD || "1501";
+
+export async function GET(request: Request) {
   try {
+    // 1. Password Protection Check
+    const authHeader =
+      request.headers.get("x-analytics-password") ||
+      request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+    const url = new URL(request.url);
+    const queryPass = url.searchParams.get("password");
+    const providedPassword = authHeader || queryPass;
+
+    if (providedPassword !== ANALYTICS_PASSWORD) {
+      return NextResponse.json(
+        { error: "Unauthorized", message: "Invalid or missing analytics password" },
+        { status: 401 }
+      );
+    }
+
     // Fetch all unique devices from the database
     const devices = await db.query(`
       SELECT device_id, visit_count, last_visited_at, created_at, 
@@ -17,7 +34,7 @@ export async function GET() {
           totalVisitors: 0,
           totalVisits: 1000,
           actualVisits: 0,
-          onlineUsers: 4,
+          onlineUsers: 0,
           actualOnlineUsers: 0,
           avgVisits: 0,
           returnRate: 0,
@@ -35,7 +52,6 @@ export async function GET() {
     }
 
     const BASE_VISITS = 1000;
-    const BASE_ONLINE = 4;
     const ONLINE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
     const now = Date.now();
     const onlineCutoff = now - ONLINE_WINDOW_MS;
@@ -79,7 +95,7 @@ export async function GET() {
     }
 
     const totalVisits = BASE_VISITS + actualVisits;
-    const onlineUsers = BASE_ONLINE + actualOnlineDevices;
+    const onlineUsers = actualOnlineDevices;
     const avgVisits = Number((actualVisits / totalVisitors).toFixed(1));
     const returnRate = Number(((returningVisitors / totalVisitors) * 100).toFixed(1));
 

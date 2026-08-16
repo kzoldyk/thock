@@ -14,7 +14,9 @@ import {
   Activity,
   Cpu,
   UserCheck,
-  ArrowUpDown
+  ArrowUpDown,
+  Lock,
+  KeyRound
 } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { appThemes } from "@/lib/themes";
@@ -184,6 +186,12 @@ export default function AnalyticsDashboard() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authChecking, setAuthChecking] = useState<boolean>(true);
+  const [passwordInput, setPasswordInput] = useState<string>("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authSubmitting, setAuthSubmitting] = useState<boolean>(false);
+
   const [rangeType, setRangeType] = useState<"preset" | "custom">("preset");
   const [timeRange, setTimeRange] = useState<7 | 14 | 30>(14);
   const [mountTime] = useState(() => Date.now());
@@ -209,51 +217,85 @@ export default function AnalyticsDashboard() {
     item: DailyTrendItem;
   } | null>(null);
 
-
-  const fetchData = async () => {
+  const verifyAndFetch = async (pwd?: string) => {
+    const passwordToUse = pwd ?? (typeof window !== "undefined" ? sessionStorage.getItem("analytics_auth_token") : "") ?? "";
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/analytics");
+      setAuthError(null);
+      const res = await fetch("/api/analytics", {
+        headers: {
+          "x-analytics-password": passwordToUse,
+        },
+      });
+
+      if (res.status === 401) {
+        setIsAuthenticated(false);
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("analytics_auth_token");
+        }
+        setAuthError(pwd !== undefined ? "Incorrect password. Please try again." : null);
+        return false;
+      }
+
       if (!res.ok) {
         throw new Error(`Failed to fetch analytics data: ${res.statusText}`);
       }
+
       const json = await res.json();
       setData(json);
+      setIsAuthenticated(true);
+      if (typeof window !== "undefined" && passwordToUse) {
+        sessionStorage.setItem("analytics_auth_token", passwordToUse);
+      }
+      return true;
     } catch (err: unknown) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Failed to load analytics");
+      return false;
     } finally {
       setLoading(false);
+      setAuthChecking(false);
     }
+  };
+
+  const fetchData = async () => {
+    await verifyAndFetch();
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordInput.trim()) return;
+    setAuthSubmitting(true);
+    await verifyAndFetch(passwordInput);
+    setAuthSubmitting(false);
+  };
+
+  const handleLockDashboard = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("analytics_auth_token");
+    }
+    setIsAuthenticated(false);
+    setData(null);
+    setPasswordInput("");
+    setAuthError(null);
   };
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await fetch("/api/analytics");
-        if (!res.ok) {
-          throw new Error(`Failed to fetch analytics data: ${res.statusText}`);
-        }
-        const json = await res.json();
-        if (active) {
-          setData(json);
-        }
-      } catch (err: unknown) {
-        console.error(err);
-        if (active) {
-          setError(err instanceof Error ? err.message : "Failed to load analytics");
-        }
-      } finally {
+    const init = async () => {
+      const stored = typeof window !== "undefined" ? sessionStorage.getItem("analytics_auth_token") : null;
+      if (stored) {
+        await verifyAndFetch(stored);
+      } else {
         if (active) {
           setLoading(false);
+          setAuthChecking(false);
+          setIsAuthenticated(false);
         }
       }
     };
-    load();
+    init();
     return () => {
       active = false;
     };
@@ -299,6 +341,88 @@ export default function AnalyticsDashboard() {
       active = false;
     };
   }, []);
+
+  if (authChecking) {
+    return (
+      <ThemeWrapper theme={theme} fontClass={fontClass}>
+        <div className="flex flex-col items-center justify-center flex-1 text-center min-h-[400px] py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-[var(--accent)] mb-4" />
+          <p className="text-[var(--muted)] animate-pulse">Checking credentials...</p>
+        </div>
+      </ThemeWrapper>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <ThemeWrapper theme={theme} fontClass={fontClass}>
+        <div className="flex flex-col items-center justify-center flex-1 p-4 min-h-[75vh]">
+          <div className="glass-panel p-8 sm:p-10 rounded-2xl border-[var(--chrome-border)] text-center max-w-md w-full mx-auto relative shadow-2xl backdrop-blur-xl">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--accent)]/10 border border-[var(--accent)]/20 flex items-center justify-center mx-auto mb-6 shadow-[0_0_25px_rgba(var(--accent-rgb),0.2)]">
+              <Lock className="w-7 h-7 text-[var(--accent)]" />
+            </div>
+
+            <h2 className="text-2xl font-bold tracking-tight mb-2">Analytics Protected</h2>
+            <p className="text-[var(--muted)] text-xs sm:text-sm mb-6 max-w-xs mx-auto leading-relaxed">
+              Enter password to access live telemetry and active user analytics.
+            </p>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    if (authError) setAuthError(null);
+                  }}
+                  placeholder="Enter password"
+                  autoComplete="off"
+                  autoFocus
+                  spellCheck={false}
+                  className="w-full bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] focus:border-[var(--accent)] rounded-xl px-4 py-3 text-center text-base outline-none transition-all duration-200 text-[var(--foreground)] placeholder:text-[var(--muted)]/50 focus:ring-2 focus:ring-[var(--accent)]/20"
+                />
+              </div>
+
+              {authError && (
+                <div className="text-red-400 text-xs font-medium bg-red-500/10 border border-red-500/20 py-2 px-3 rounded-lg">
+                  {authError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={authSubmitting || !passwordInput.trim()}
+                className="w-full glass-panel glass-glow py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed bg-[var(--accent)] text-black"
+              >
+                {authSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4" />
+                    <span>Unlock Dashboard</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 pt-6 border-t border-[var(--chrome-border)]">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Return to Thock</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </ThemeWrapper>
+    );
+  }
 
   if (loading) {
     return (
@@ -579,6 +703,14 @@ export default function AnalyticsDashboard() {
                 <RefreshCw className="w-4 h-4" />
               </button>
 
+              <button
+                onClick={handleLockDashboard}
+                className="glass-panel glass-glow p-2 rounded-xl text-[var(--muted)] hover:text-red-400 cursor-pointer h-[34px] flex items-center justify-center transition-colors"
+                title="Lock dashboard"
+              >
+                <Lock className="w-4 h-4" />
+              </button>
+
               <div className="glass-panel p-1 rounded-xl flex gap-1 text-xs font-semibold h-[34px] items-center">
                 {[7, 14, 30].map((range) => (
                   <button
@@ -624,9 +756,9 @@ export default function AnalyticsDashboard() {
               isLive: false,
             },
             {
-              label: "Online Users",
-              value: (data.summary.onlineUsers ?? 4).toLocaleString(),
-              desc: `Base 4 + ${data.summary.actualOnlineUsers ?? 0} live now`,
+              label: "Active Users (Live)",
+              value: (data.summary.actualOnlineUsers ?? data.summary.onlineUsers ?? 0).toLocaleString(),
+              desc: `${data.summary.actualOnlineUsers ?? data.summary.onlineUsers ?? 0} active in last 5m`,
               icon: Globe,
               color: "text-emerald-400",
               bg: "bg-emerald-500/10",
