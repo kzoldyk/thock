@@ -129,6 +129,10 @@ export async function POST(request: Request) {
     const rawConsistency = Number(body.consistency);
     const rawTimeLimit = Number(body.timeLimit);
     const rawMode = String(body.mode || "time");
+    const speedRaw = Number(body.rawWpm ?? body.raw ?? body.wpm);
+    const mistakesCount = Number(body.mistakes ?? 0);
+    const totalTypedCount = Number(body.totalTyped ?? 0);
+    const elapsedMsCount = Number(body.elapsedMs ?? (rawTimeLimit * 1000));
 
     // Normalizations & Range Bounds
     const wpm = !isNaN(rawWpm) ? Math.max(0, Math.min(350, Math.round(rawWpm))) : 0;
@@ -136,23 +140,40 @@ export async function POST(request: Request) {
     const consistency = !isNaN(rawConsistency) ? Math.max(0, Math.min(100, Math.round(rawConsistency))) : 100;
     const timeLimit = !isNaN(rawTimeLimit) && rawTimeLimit > 0 ? Math.round(rawTimeLimit) : 30;
     const mode = rawMode;
+    const raw = !isNaN(speedRaw) ? Math.max(0, Math.min(400, Math.round(speedRaw))) : wpm;
+    const mistakes = !isNaN(mistakesCount) ? Math.max(0, Math.round(mistakesCount)) : 0;
+    const totalTyped = !isNaN(totalTypedCount) ? Math.max(0, Math.round(totalTypedCount)) : 0;
+    const elapsedMs = !isNaN(elapsedMsCount) ? Math.max(0, Math.round(elapsedMsCount)) : timeLimit * 1000;
 
     const scoreId = crypto.randomUUID();
     const createdAt = Date.now();
 
-    await db.execute(
-      `INSERT INTO scores (id, user_id, wpm, accuracy, consistency, time_limit, mode, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [scoreId, payload.id, wpm, accuracy, consistency, timeLimit, mode, createdAt]
-    );
+    try {
+      await db.execute(
+        `INSERT INTO scores (id, user_id, wpm, accuracy, consistency, time_limit, mode, created_at, raw_wpm, mistakes, total_typed, elapsed_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [scoreId, payload.id, wpm, accuracy, consistency, timeLimit, mode, createdAt, raw, mistakes, totalTyped, elapsedMs]
+      );
+    } catch {
+      // Fallback for schemas without new columns
+      await db.execute(
+        `INSERT INTO scores (id, user_id, wpm, accuracy, consistency, time_limit, mode, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [scoreId, payload.id, wpm, accuracy, consistency, timeLimit, mode, createdAt]
+      );
+    }
 
     return NextResponse.json({
       success: true,
       score: {
         id: scoreId,
         wpm,
+        rawWpm: raw,
         accuracy,
         consistency,
+        mistakes,
+        totalTyped,
+        elapsedMs,
         timeLimit,
         mode,
         createdAt

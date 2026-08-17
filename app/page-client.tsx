@@ -22,6 +22,7 @@ import type { FontFamily } from "@/types"
 import { FeedbackModal } from "@/components/ui/FeedbackModal"
 import { AuthModal } from "@/components/ui/AuthModal"
 import { LeaderboardView } from "@/components/ui/LeaderboardView"
+import { StatisticsView } from "@/components/ui/StatisticsView"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 import { switchProfiles } from "@/lib/switches"
 
@@ -926,7 +927,8 @@ export default function Home() {
             {["Practice", "Challenges", "Leaderboard", "Statistics"].map((tab) => {
               const isPractice = tab === "Practice"
               const isLeaderboard = tab === "Leaderboard"
-              const isEnabled = isPractice || isLeaderboard
+              const isStatistics = tab === "Statistics"
+              const isEnabled = isPractice || isLeaderboard || isStatistics
               const isActive = activeTab === tab
               return (
                 <button
@@ -1104,6 +1106,7 @@ export default function Home() {
                       currentUser={currentUser}
                       onOpenAuth={() => setAuthOpen(true)}
                       onViewLeaderboard={() => setActiveTab("Leaderboard")}
+                      onViewStatistics={() => setActiveTab("Statistics")}
                     />
                   </div>
                 ) : (
@@ -1154,6 +1157,14 @@ export default function Home() {
                 fontClass={fontClass}
               />
             </div>
+          ) : activeTab === "Statistics" ? (
+            <div className="flex-1 flex items-center justify-center py-4 sm:py-6 px-2 sm:px-4">
+              <StatisticsView
+                currentUser={currentUser}
+                onOpenAuth={() => setAuthOpen(true)}
+                fontClass={fontClass}
+              />
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <motion.div 
@@ -1165,7 +1176,7 @@ export default function Home() {
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-4 sm:mb-6 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />
                   <span className="relative z-10 opacity-80">
-                    {activeTab === "Challenges" ? "🏆" : activeTab === "Statistics" ? "📈" : "✨"}
+                    {activeTab === "Challenges" ? "🏆" : "✨"}
                   </span>
                 </div>
                 <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--foreground)]">{activeTab}</h2>

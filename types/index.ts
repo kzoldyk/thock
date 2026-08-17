@@ -124,3 +124,70 @@ export interface AppTheme {
 }
 
 export type LayoutId = '60' | '75'
+
+export interface TestRecord {
+  id: string
+  wpm: number
+  rawWpm: number
+  accuracy: number
+  consistency: number
+  mistakes: number
+  streak: number
+  elapsedMs: number
+  totalTyped: number
+  correctChars: number
+  timeLimit: number
+  mode: "time" | "words" | "quotes" | "code"
+  createdAt: number
+}
+
+export interface ModeStatBreakdown {
+  mode: string
+  label: string
+  testsCount: number
+  bestWpm: number
+  avgWpm: number
+  avgAccuracy: number
+  avgConsistency: number
+  totalTimeSeconds: number
+}
+
+export interface SpeedBucket {
+  label: string
+  min: number
+  max: number
+  count: number
+  percentage: number
+}
+
+export interface DiagnosticInsight {
+  id: string
+  type: "positive" | "warning" | "tip"
+  title: string
+  description: string
+  metric?: string
+}
+
+export interface UserStatsSummary {
+  totalTests: number
+  totalTimeSeconds: number
+  totalTypedChars: number
+  totalWords: number
+  totalMistakes: number
+  avgWpm: number
+  bestWpm: number
+  avgRawWpm: number
+  bestRawWpm: number
+  avgAccuracy: number
+  bestAccuracy: number
+  avgConsistency: number
+  currentDailyStreak: number
+  testsToday: number
+  highAccuracyRatio: number // % of tests with >=98% accuracy
+  speedImprovementRate: number // % improvement over first 5 tests
+  speedBuckets: SpeedBucket[]
+  modeBreakdowns: ModeStatBreakdown[]
+  insights: DiagnosticInsight[]
+  recentTests: TestRecord[]
+}
+

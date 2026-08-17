@@ -137,10 +137,52 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
 
   // 5. Insert score: INSERT INTO scores ...
   if (sqlNormalized.startsWith("INSERT INTO scores")) {
-    const [id, user_id, wpm, accuracy, consistency, time_limit, mode, created_at] = params;
-    const newScore = { id, user_id, wpm, accuracy, consistency, time_limit, mode, created_at };
+    const [id, user_id, wpm, accuracy, consistency, time_limit, mode, created_at, raw_wpm, mistakes, total_typed, elapsed_ms] = params;
+    const newScore = {
+      id,
+      user_id,
+      wpm,
+      accuracy,
+      consistency,
+      time_limit,
+      mode,
+      created_at,
+      raw_wpm: raw_wpm ?? wpm,
+      mistakes: mistakes ?? 0,
+      total_typed: total_typed ?? 0,
+      elapsed_ms: elapsed_ms ?? (time_limit ? time_limit * 1000 : 30000)
+    };
     g.__thock_scores.push(newScore);
     return [];
+  }
+
+  // 5b. Select user scores: SELECT * FROM scores WHERE user_id = ? ORDER BY created_at DESC
+  if (sqlNormalized.includes("FROM scores") && sqlNormalized.includes("user_id = ?") && (sqlNormalized.includes("ORDER BY created_at") || !sqlNormalized.includes("ORDER BY"))) {
+    const user_id = params[0];
+    const userScores = g.__thock_scores
+      .filter((s: any) => s.user_id === user_id)
+      .map((s: any) => ({
+        id: s.id,
+        user_id: s.user_id,
+        wpm: s.wpm,
+        raw_wpm: s.raw_wpm ?? s.wpm,
+        accuracy: s.accuracy,
+        consistency: s.consistency,
+        mistakes: s.mistakes ?? 0,
+        total_typed: s.total_typed ?? 0,
+        elapsed_ms: s.elapsed_ms ?? ((s.time_limit || 30) * 1000),
+        time_limit: s.time_limit,
+        mode: s.mode,
+        created_at: s.created_at,
+      }));
+    userScores.sort((a: any, b: any) => b.created_at - a.created_at);
+    
+    // Check if there is a limit
+    if (sqlNormalized.includes("LIMIT ?")) {
+      const limitParam = params[params.length - 1];
+      return userScores.slice(0, Number(limitParam) || 50);
+    }
+    return userScores;
   }
 
   // 6. Select leaderboard: SELECT scores.*, users.username FROM scores JOIN users ON scores.user_id = users.id WHERE scores.time_limit = ? AND scores.mode = ? ORDER BY scores.wpm DESC, scores.accuracy DESC LIMIT ?

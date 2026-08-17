@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { 
   Trophy, 
   RotateCcw, 
@@ -13,13 +13,18 @@ import {
   AlertCircle, 
   Sparkles, 
   ChevronRight,
-  BarChart2
+  BarChart2,
+  BarChart3,
+  TrendingUp,
+  Sliders,
+  ChevronDown
 } from "lucide-react"
 import type { TypingStats } from "@/types"
 import type { StatsSample } from "@/engines/metrics/history"
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/stores/useAppStore"
+import { saveLocalTestResult } from "@/lib/user-stats"
 
 interface Props {
   stats: TypingStats
@@ -28,6 +33,7 @@ interface Props {
   currentUser: { id: string; username: string } | null
   onOpenAuth: () => void
   onViewLeaderboard?: () => void
+  onViewStatistics?: () => void
 }
 
 function getRankTitle(wpm: number) {
@@ -48,6 +54,7 @@ export function ResultCard({
   currentUser,
   onOpenAuth,
   onViewLeaderboard,
+  onViewStatistics,
 }: Props) {
   const isPerfect = stats.accuracy === 100 && stats.totalTyped > 0
   const isPb = stats.wpm > 100
@@ -61,26 +68,60 @@ export function ResultCard({
   // Interactive Chart state
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [activeSeries, setActiveSeries] = useState<"both" | "net" | "raw">("both")
+  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false)
 
-  // Silent score submission in background
+  // Save score locally and submit online
   useEffect(() => {
-    if (!currentUser || hasSubmitted.current) return
+    if (hasSubmitted.current) return
     hasSubmitted.current = true
 
-    fetch("/api/leaderboard", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        wpm: Math.round(Number.isNaN(stats.wpm) ? 0 : stats.wpm),
-        accuracy: Math.round(Number.isNaN(stats.accuracy) ? 100 : stats.accuracy),
-        consistency: Math.round(Number.isNaN(stats.consistency) ? 100 : stats.consistency),
-        timeLimit: timeLimit || 30,
-        mode: typingMode || "time",
-      }),
-    }).catch((err) => {
-      console.error("[leaderboard] Silent score submission error:", err?.message || err)
+    // 1. Save locally for instant offline-first stats
+    saveLocalTestResult({
+      wpm: stats.wpm,
+      rawWpm: stats.raw,
+      accuracy: stats.accuracy,
+      consistency: stats.consistency,
+      mistakes: stats.mistakes,
+      streak: stats.streak,
+      elapsedMs: stats.elapsedMs,
+      totalTyped: stats.totalTyped,
+      correctChars: stats.correctChars,
+      timeLimit: timeLimit || 30,
+      mode: typingMode || "time",
     })
-  }, [currentUser, stats.wpm, stats.accuracy, stats.consistency, timeLimit, typingMode])
+
+    // 2. Submit to server if logged in
+    if (currentUser) {
+      fetch("/api/leaderboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wpm: Math.round(Number.isNaN(stats.wpm) ? 0 : stats.wpm),
+          rawWpm: Math.round(Number.isNaN(stats.raw) ? 0 : stats.raw),
+          accuracy: Math.round(Number.isNaN(stats.accuracy) ? 100 : stats.accuracy),
+          consistency: Math.round(Number.isNaN(stats.consistency) ? 100 : stats.consistency),
+          mistakes: stats.mistakes,
+          totalTyped: stats.totalTyped,
+          elapsedMs: stats.elapsedMs,
+          timeLimit: timeLimit || 30,
+          mode: typingMode || "time",
+        }),
+      }).catch((err) => {
+        console.error("[leaderboard] Silent score submission error:", err?.message || err)
+      })
+    }
+  }, [currentUser, stats, timeLimit, typingMode])
+
+  // In-depth diagnostics computations
+  const burstWpm = useMemo(() => {
+    if (!history || history.length === 0) return Math.round(stats.wpm)
+    const peak = Math.max(...history.map((h) => h.liveWpm), stats.wpm)
+    return Math.round(peak)
+  }, [history, stats.wpm])
+
+  const errorPenalty = useMemo(() => {
+    return Math.max(0, Math.round(stats.raw - stats.wpm))
+  }, [stats.raw, stats.wpm])
 
   // Chart computation & point mapping
   const chartData = useMemo(() => {
@@ -413,6 +454,73 @@ export function ResultCard({
           </div>
         </div>
 
+        {/* Expandable Deep Diagnostics Drawer */}
+        <div className="mb-5 rounded-xl border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] overflow-hidden transition-all">
+          <button
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+            className="w-full p-3 flex items-center justify-between text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--chrome-surface-strong)] transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Sliders className="w-3.5 h-3.5 text-[var(--muted)]" />
+              <span>Deep Run Diagnostics</span>
+              <span className="text-[10px] text-[var(--muted)] font-normal">
+                (Burst Speed, Error Penalty & Rhythm)
+              </span>
+            </div>
+            <ChevronDown
+              className={cn("w-4 h-4 text-[var(--muted)] transition-transform duration-200", showDiagnostics && "rotate-180")}
+            />
+          </button>
+
+          <AnimatePresence>
+            {showDiagnostics && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="p-3 pt-0 border-t border-[var(--chrome-border)]/60 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs"
+              >
+                <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] flex flex-col justify-between">
+                  <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3 text-amber-400" /> Peak Burst Speed
+                  </div>
+                  <div className="text-lg font-bold text-[var(--foreground)] font-mono my-1">
+                    {burstWpm} <span className="text-xs font-normal text-[var(--muted)]">wpm</span>
+                  </div>
+                  <div className="text-[10px] text-[var(--muted)]">
+                    Max instantaneous burst
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] flex flex-col justify-between">
+                  <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-rose-400" /> Error Speed Penalty
+                  </div>
+                  <div className="text-lg font-bold text-rose-400 font-mono my-1">
+                    -{errorPenalty} <span className="text-xs font-normal text-[var(--muted)]">wpm</span>
+                  </div>
+                  <div className="text-[10px] text-[var(--muted)]">
+                    Speed lost to backspaces
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] flex flex-col justify-between">
+                  <div className="text-[10px] font-medium text-[var(--muted)] uppercase tracking-wider flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-sky-400" /> Keystroke Flow
+                  </div>
+                  <div className="text-lg font-bold text-sky-400 font-mono my-1">
+                    {stats.consistency >= 80 ? "Steady" : stats.consistency >= 65 ? "Moderate" : "Variable"}
+                  </div>
+                  <div className="text-[10px] text-[var(--muted)]">
+                    {stats.consistency}% cadence rating
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Clean Flat Leaderboard Banner Callout */}
         <div
           onClick={currentUser ? onViewLeaderboard : onOpenAuth}
@@ -430,18 +538,30 @@ export function ResultCard({
         </div>
 
         {/* Solid Action Buttons (No AI Slop Gradients) */}
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--chrome-border)] pt-4">
-          <button
-            onClick={onViewLeaderboard}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-[var(--foreground)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] transition-colors cursor-pointer"
-          >
-            <Trophy className="w-3.5 h-3.5" />
-            Leaderboard
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[var(--chrome-border)] pt-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onViewLeaderboard}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-[var(--foreground)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] transition-colors cursor-pointer"
+            >
+              <Trophy className="w-3.5 h-3.5" />
+              Leaderboard
+            </button>
+
+            {onViewStatistics && (
+              <button
+                onClick={onViewStatistics}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-[var(--foreground)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] transition-colors cursor-pointer"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Statistics
+              </button>
+            )}
+          </div>
 
           <button
             onClick={onRestart}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-bold bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 active:scale-[0.99] transition-all cursor-pointer shadow-sm"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 active:scale-[0.99] transition-all cursor-pointer shadow-sm ml-auto"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Start Next Session</span>

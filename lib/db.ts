@@ -189,6 +189,16 @@ async function ensureDbInitialized(db: DatabaseClient) {
       }
     }
 
+    // Auto-migrate new columns for scores table
+    const scoreColumnsToAdd = ['raw_wpm', 'mistakes', 'total_typed', 'elapsed_ms'];
+    for (const col of scoreColumnsToAdd) {
+      try {
+        await db.execute(`ALTER TABLE scores ADD COLUMN ${col} REAL`);
+      } catch (err) {
+        // Ignore errors if column already exists
+      }
+    }
+
     isDbInitialized = true;
   } catch (err) {
     console.error("Database initialization failed:", err);
