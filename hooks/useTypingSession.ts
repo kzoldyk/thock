@@ -354,7 +354,8 @@ export function useTypingSession(
         activeKeysRef.current.add(code)
         setActiveKeysView(new Set(activeKeysRef.current))
 
-        if (useAppStore.getState().soundEnabled) {
+        const { soundEnabled, zenMode } = useAppStore.getState()
+        if (soundEnabled && !zenMode) {
           const pan = getPanValue(code)
           audioEngine.playDown(code, pan)
         }
@@ -499,7 +500,8 @@ export function useTypingSession(
         activeKeysRef.current.delete(code)
         setActiveKeysView(new Set(activeKeysRef.current))
       }
-      if (useAppStore.getState().soundEnabled) {
+      const { soundEnabled, zenMode } = useAppStore.getState()
+      if (soundEnabled && !zenMode) {
         const pan = getPanValue(code)
         audioEngine.playUp(code, pan)
       }

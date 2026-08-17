@@ -13,6 +13,24 @@ export const QuickBar = memo(function QuickBar() {
   const setComplexWords = useAppStore((s) => s.setComplexWords)
   const paragraphMode = useAppStore((s) => s.paragraphMode)
   const setParagraphMode = useAppStore((s) => s.setParagraphMode)
+  const zenMode = useAppStore((s) => s.zenMode)
+  const setZenMode = useAppStore((s) => s.setZenMode)
+  const setDelightMessage = useAppStore((s) => s.setDelightMessage)
+
+  const handleToggleZen = () => {
+    const next = !zenMode
+    setZenMode(next)
+    if (next) {
+      setDelightMessage("Zen Mode Active 🧘 — Muted sounds & hidden keyboard for pure focus & peak WPM!")
+    } else {
+      setDelightMessage("Zen Mode Off ⚡ — Restored keyboard & audio")
+    }
+    setTimeout(() => {
+      if (useAppStore.getState().delightMessage?.startsWith("Zen Mode")) {
+        setDelightMessage(null)
+      }
+    }, 3500)
+  }
 
   const modes: { id: "time" | "words" | "quotes" | "code"; label: string; icon: string }[] = [
     { id: "time", label: "time", icon: "⏱️" },
@@ -106,6 +124,21 @@ export const QuickBar = memo(function QuickBar() {
         >
           <span>📖</span>
           <span className="hidden xs:inline">Paragraph</span>
+        </button>
+
+        {/* Zen Mode Toggle */}
+        <button
+          onClick={handleToggleZen}
+          className={cn(
+            "px-2 sm:px-2.5 py-1 rounded-lg sm:rounded-xl transition-all duration-200 cursor-pointer text-[10px] sm:text-[11px] font-semibold flex items-center gap-1 sm:gap-1.5",
+            zenMode
+              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+              : "text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--chrome-surface)]"
+          )}
+          title="Toggle Zen Mode (Distraction-Free, Muted & Hidden Keyboard for Peak WPM)"
+        >
+          <span>🧘</span>
+          <span className="hidden xs:inline">Zen</span>
         </button>
       </div>
     </div>

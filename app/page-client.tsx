@@ -75,6 +75,8 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
     soundEnabled, setSoundEnabled,
     keyboardType, setKeyboardType,
     flowMode,
+    paragraphMode, setParagraphMode,
+    zenMode, setZenMode,
     dampenerId, setDampenerId,
   } = useAppStore()
 
@@ -91,7 +93,7 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
         layoutId, keyboardThemeId, appThemeId, switchPackId, volume, keyVolume,
         reducedMotion, stereoWidth, reverb, pitch, fontFamily, typingMode,
         timeLimit, complexWords, showKeyboard, soundEnabled, keyboardType,
-        flowMode, dampenerId
+        flowMode, paragraphMode, zenMode, dampenerId
       })
       setShowSavePrompt(false)
     }
@@ -107,7 +109,7 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
       layoutId, keyboardThemeId, appThemeId, switchPackId, volume, keyVolume,
       reducedMotion, stereoWidth, reverb, pitch, fontFamily, typingMode,
       timeLimit, complexWords, showKeyboard, soundEnabled, keyboardType,
-      flowMode, dampenerId
+      flowMode, paragraphMode, zenMode, dampenerId
     }
 
     const hasChanges = JSON.stringify(initialSnapshot) !== JSON.stringify(currentSnapshot)
@@ -128,7 +130,7 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
         layoutId, keyboardThemeId, appThemeId, switchPackId, volume, keyVolume,
         reducedMotion, stereoWidth, reverb, pitch, fontFamily, typingMode,
         timeLimit, complexWords, showKeyboard, soundEnabled, keyboardType,
-        flowMode, dampenerId
+        flowMode, paragraphMode, zenMode, dampenerId
       }
       await fetch("/api/preferences", {
         method: "POST",
@@ -382,6 +384,26 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
                       type="checkbox"
                       checked={soundEnabled}
                       onChange={(e) => setSoundEnabled(e.target.checked)}
+                      className="rounded accent-[var(--accent)] w-4 h-4 cursor-pointer"
+                    />
+                  </label>
+                </Section>
+
+                <Section title="Zen Mode (Flow)">
+                  <label className="flex items-center justify-between p-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs font-semibold cursor-pointer select-none">
+                    <span className="text-[var(--muted)]">Mute & Hide Keyboard for Peak WPM</span>
+                    <input
+                      type="checkbox"
+                      checked={zenMode}
+                      onChange={(e) => {
+                        const next = e.target.checked
+                        setZenMode(next)
+                        if (next) {
+                          useAppStore.getState().setDelightMessage("Zen Mode Active 🧘 — Muted sounds & hidden keyboard for pure focus & peak WPM!")
+                        } else {
+                          useAppStore.getState().setDelightMessage("Zen Mode Off ⚡ — Restored keyboard & sounds")
+                        }
+                      }}
                       className="rounded accent-[var(--accent)] w-4 h-4 cursor-pointer"
                     />
                   </label>
@@ -657,8 +679,13 @@ export default function Home() {
   const setSoundEnabled = useAppStore((s) => s.setSoundEnabled)
   const keyboardType = useAppStore((s) => s.keyboardType)
   const flowMode = useAppStore((s) => s.flowMode)
+  const zenMode = useAppStore((s) => s.zenMode)
+  const setZenMode = useAppStore((s) => s.setZenMode)
+  const zenTipDismissed = useAppStore((s) => s.zenTipDismissed)
+  const setZenTipDismissed = useAppStore((s) => s.setZenTipDismissed)
   const activeEffect = useAppStore((s) => s.activeEffect)
   const delightMessage = useAppStore((s) => s.delightMessage)
+  const setDelightMessage = useAppStore((s) => s.setDelightMessage)
 
   const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
   const fontFamily = useAppStore((s) => s.fontFamily)
@@ -1090,7 +1117,7 @@ export default function Home() {
               </div>
 
               {/* Keyboard Display Section */}
-              {showKeyboard && sessionState !== "finished" && (
+              {showKeyboard && !zenMode && sessionState !== "finished" && (
                 <div className="relative px-1 xs:px-2 sm:px-8 pb-1 sm:pb-3 max-w-[1000px] w-full mx-auto flex flex-col items-center">
                   {keyboardType === "2d" ? (
                     <Keyboard2D
@@ -1202,6 +1229,56 @@ export default function Home() {
             }}
           >
             <span className="animate-bounce">✨</span> {delightMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Zen Mode Discovery Banner for unaware users */}
+      <AnimatePresence>
+        {!zenMode && !zenTipDismissed && sessionState === "idle" && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="fixed bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 z-30 max-w-[94vw] sm:max-w-md w-full px-2"
+          >
+            <div className="glass-panel p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-emerald-500/30 bg-[var(--chrome-surface-strong)] flex items-center justify-between gap-3 backdrop-blur-xl">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 text-base">
+                  🧘
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] sm:text-xs font-bold text-[var(--foreground)] truncate">
+                    Aiming for Higher WPM?
+                  </p>
+                  <p className="text-[10px] sm:text-[11px] text-[var(--muted)] truncate">
+                    Try Zen Mode: mutes sounds & hides keyboard for pure focus
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => {
+                    setZenMode(true)
+                    setZenTipDismissed(true)
+                    setDelightMessage("Zen Mode Active 🧘 — Muted sounds & hidden keyboard for pure focus & peak WPM!")
+                    setTimeout(() => setDelightMessage(null), 3500)
+                  }}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500 text-white font-bold text-[10px] sm:text-xs shadow-sm hover:bg-emerald-600 active:scale-95 transition-all cursor-pointer"
+                >
+                  Try Zen
+                </button>
+                <button
+                  onClick={() => setZenTipDismissed(true)}
+                  className="p-1.5 rounded-xl text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-colors text-xs cursor-pointer"
+                  title="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

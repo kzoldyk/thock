@@ -33,6 +33,10 @@ interface AppStore {
   setTypingMode: (mode: "time" | "words" | "quotes" | "code") => void
   paragraphMode: boolean
   setParagraphMode: (v: boolean) => void
+  zenMode: boolean
+  setZenMode: (v: boolean) => void
+  zenTipDismissed: boolean
+  setZenTipDismissed: (v: boolean) => void
   timeLimit: number
   setTimeLimit: (t: number) => void
   complexWords: boolean
@@ -82,7 +86,7 @@ export const useAppStore = create<AppStore>()(
       setReverb: (v) => set({ reverb: v }),
       pitch: 1.0,
       setPitch: (v) => set({ pitch: v }),
-      fontFamily: "inter",
+      fontFamily: "jetbrains-mono",
       setFontFamily: (font) => set({ fontFamily: font }),
       typingMode: "time",
       setTypingMode: (mode) => set({ typingMode: mode }),
@@ -100,6 +104,10 @@ export const useAppStore = create<AppStore>()(
       setFlowMode: (v) => set({ flowMode: v }),
       paragraphMode: false,
       setParagraphMode: (v) => set({ paragraphMode: v }),
+      zenMode: false,
+      setZenMode: (v) => set({ zenMode: v }),
+      zenTipDismissed: false,
+      setZenTipDismissed: (v) => set({ zenTipDismissed: v }),
       activeEffect: null,
       setActiveEffect: (v) => set({ activeEffect: v }),
       explosions: [],
@@ -142,6 +150,8 @@ export const useAppStore = create<AppStore>()(
         keyboardType: state.keyboardType,
         flowMode: state.flowMode,
         paragraphMode: state.paragraphMode,
+        zenMode: state.zenMode,
+        zenTipDismissed: state.zenTipDismissed,
         dampenerId: state.dampenerId,
       }),
     }
