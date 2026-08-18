@@ -166,6 +166,25 @@ async function ensureDbInitialized(db: DatabaseClient) {
           device_type TEXT,
           country TEXT
         )`
+      },
+      {
+        sql: `CREATE TABLE IF NOT EXISTS user_letter_stats (
+          user_id TEXT NOT NULL,
+          char TEXT NOT NULL,
+          total_typed INTEGER NOT NULL DEFAULT 0,
+          correct_count INTEGER NOT NULL DEFAULT 0,
+          error_count INTEGER NOT NULL DEFAULT 0,
+          total_latency_ms REAL NOT NULL DEFAULT 0,
+          avg_latency_ms REAL NOT NULL DEFAULT 0,
+          accuracy REAL NOT NULL DEFAULT 100,
+          grip_score REAL NOT NULL DEFAULT 100,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (user_id, char),
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`
+      },
+      {
+        sql: `CREATE INDEX IF NOT EXISTS idx_user_letter_grip ON user_letter_stats (user_id, grip_score ASC)`
       }
     ]);
     

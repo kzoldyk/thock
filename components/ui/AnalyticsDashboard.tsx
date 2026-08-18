@@ -23,6 +23,7 @@ import { appThemes } from "@/lib/themes";
 import { getFontClass } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+import { UserDetailsModal } from "@/components/ui/UserDetailsModal";
 
 interface Summary {
   totalVisitors: number;
@@ -209,6 +210,7 @@ export default function AnalyticsDashboard() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<{
     index: number;
     x: number;
@@ -1347,11 +1349,12 @@ export default function AnalyticsDashboard() {
                   return (
                     <div
                       key={user.userId}
+                      onClick={() => setSelectedUserId(user.userId)}
                       className={cn(
-                        "glass-panel p-5 rounded-2xl border transition-all duration-300 flex flex-col justify-between group relative overflow-hidden",
+                        "glass-panel p-5 rounded-2xl border transition-all duration-300 flex flex-col justify-between group relative overflow-hidden cursor-pointer hover:shadow-xl hover:border-[var(--accent)]/50 hover:bg-[var(--chrome-surface)] active:scale-[0.99]",
                         isCurrentUser
                           ? "border-[var(--accent)] ring-2 ring-[var(--accent)]/30 bg-[var(--accent)]/5 shadow-[0_0_25px_rgba(var(--accent-rgb),0.15)]"
-                          : "border-[var(--chrome-border)] hover:border-[var(--accent)]/30"
+                          : "border-[var(--chrome-border)]"
                       )}
                     >
                       {isCurrentUser && (
@@ -1369,7 +1372,7 @@ export default function AnalyticsDashboard() {
                           )}
                         </div>
                         <div className="min-w-0 pr-6">
-                          <h4 className="font-bold text-sm truncate" title={user.username}>
+                          <h4 className="font-bold text-sm truncate group-hover:text-[var(--accent)] transition-colors" title={user.username}>
                             {user.username}
                           </h4>
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -1446,6 +1449,11 @@ export default function AnalyticsDashboard() {
                         <span className="font-semibold text-[9px] block mb-0.5">User Agent:</span>
                         {user.userAgent}
                       </div>
+
+                      <div className="mt-3 pt-2 border-t border-[var(--chrome-border)]/40 flex items-center justify-between text-[10px] font-bold text-[var(--accent)] group-hover:translate-x-0.5 transition-transform">
+                        <span>View Full Metrics & Letter Grip</span>
+                        <span>→</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1453,6 +1461,15 @@ export default function AnalyticsDashboard() {
             )}
             </div>
           </div>
+        )}
+
+        {/* User Details Inspection Modal */}
+        {selectedUserId && (
+          <UserDetailsModal
+            userId={selectedUserId}
+            onClose={() => setSelectedUserId(null)}
+            analyticsPassword={(typeof window !== "undefined" ? sessionStorage.getItem("analytics_auth_token") : "") || "1501"}
+          />
         )}
       </div>
     </ThemeWrapper>

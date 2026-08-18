@@ -101,6 +101,9 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
   if (!g.__thock_preferences) {
     g.__thock_preferences = [];
   }
+  if (!g.__thock_letter_stats) {
+    g.__thock_letter_stats = [];
+  }
 
   const sqlNormalized = sql.trim().replace(/\s+/g, " ");
 
@@ -363,11 +366,55 @@ export async function executeMockQuery(sql: string, params: any[] = []): Promise
     return joined;
   }
 
-  // 13. Select all unique devices: SELECT * FROM unique_devices
+  // 13. Select unique devices for user or all
   if (sqlNormalized.includes("FROM unique_devices")) {
+    if (sqlNormalized.includes("user_id = ?")) {
+      const user_id = params[0];
+      const userDevices = g.__thock_unique_devices.filter((d: any) => d.user_id === user_id);
+      userDevices.sort((a: any, b: any) => b.last_visited_at - a.last_visited_at);
+      return userDevices;
+    }
     const sorted = [...g.__thock_unique_devices];
     sorted.sort((a: any, b: any) => b.last_visited_at - a.last_visited_at);
     return sorted;
+  }
+
+  // 14. Select letter stats for user: SELECT * FROM user_letter_stats WHERE user_id = ?
+  if (sqlNormalized.includes("FROM user_letter_stats") && sqlNormalized.includes("user_id = ?")) {
+    const user_id = params[0];
+    const stats = (g.__thock_letter_stats || [])
+      .filter((s: any) => s.user_id === user_id)
+      .map((s: any) => ({ ...s }));
+    if (sqlNormalized.includes("ORDER BY grip_score ASC")) {
+      stats.sort((a: any, b: any) => a.grip_score - b.grip_score);
+    } else if (sqlNormalized.includes("ORDER BY char ASC")) {
+      stats.sort((a: any, b: any) => a.char.localeCompare(b.char));
+    }
+    return stats;
+  }
+
+  // 15. Insert/Upsert letter stats: INSERT INTO user_letter_stats ...
+  if (sqlNormalized.startsWith("INSERT INTO user_letter_stats") || sqlNormalized.startsWith("INSERT OR REPLACE INTO user_letter_stats")) {
+    const [user_id, char, total_typed, correct_count, error_count, total_latency_ms, avg_latency_ms, accuracy, grip_score, updated_at] = params;
+    const existingIndex = g.__thock_letter_stats.findIndex((s: any) => s.user_id === user_id && s.char === char);
+    const newRecord = {
+      user_id,
+      char,
+      total_typed: Number(total_typed) || 0,
+      correct_count: Number(correct_count) || 0,
+      error_count: Number(error_count) || 0,
+      total_latency_ms: Number(total_latency_ms) || 0,
+      avg_latency_ms: Number(avg_latency_ms) || 0,
+      accuracy: Number(accuracy) || 100,
+      grip_score: Number(grip_score) || 100,
+      updated_at: Number(updated_at) || Date.now(),
+    };
+    if (existingIndex !== -1) {
+      g.__thock_letter_stats[existingIndex] = newRecord;
+    } else {
+      g.__thock_letter_stats.push(newRecord);
+    }
+    return [];
   }
 
   throw new Error(`Unsupported SQL query in mock database: ${sql}`);

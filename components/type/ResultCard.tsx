@@ -19,12 +19,13 @@ import {
   Sliders,
   ChevronDown
 } from "lucide-react"
-import type { TypingStats } from "@/types"
+import type { TypingStats, Keystroke } from "@/types"
 import type { StatsSample } from "@/engines/metrics/history"
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/stores/useAppStore"
 import { saveLocalTestResult } from "@/lib/user-stats"
+import { saveLocalLetterGrip } from "@/lib/letter-grip"
 
 interface Props {
   stats: TypingStats
@@ -34,6 +35,7 @@ interface Props {
   onOpenAuth: () => void
   onViewLeaderboard?: () => void
   onViewStatistics?: () => void
+  keystrokes?: Keystroke[]
 }
 
 function getRankTitle(wpm: number) {
@@ -55,6 +57,7 @@ export function ResultCard({
   onOpenAuth,
   onViewLeaderboard,
   onViewStatistics,
+  keystrokes,
 }: Props) {
   const isPerfect = stats.accuracy === 100 && stats.totalTyped > 0
   const isPb = stats.wpm > 100
@@ -75,7 +78,7 @@ export function ResultCard({
     if (hasSubmitted.current) return
     hasSubmitted.current = true
 
-    // 1. Save locally for instant offline-first stats
+    // 1. Save score locally for instant offline-first stats
     saveLocalTestResult({
       wpm: stats.wpm,
       rawWpm: stats.raw,
@@ -90,7 +93,59 @@ export function ResultCard({
       mode: typingMode || "time",
     })
 
-    // 2. Submit to server if logged in
+    // 2. Track & save granular letter-wise grip
+    if (keystrokes && keystrokes.length > 0) {
+      saveLocalLetterGrip(keystrokes)
+
+      if (currentUser) {
+        // Aggregate per-character deltas for this session
+        const charDeltas = new Map<string, { totalTyped: number; correctCount: number; errorCount: number; totalLatencyMs: number }>()
+        let prevT: number | null = null
+
+        for (const k of keystrokes) {
+          if (k.code === "Backspace" || k.code === "Space" || !k.target) {
+            prevT = k.timestamp
+            continue
+          }
+          const char = k.target.toLowerCase()
+          if (!/^[a-z0-9]$/.test(char)) {
+            prevT = k.timestamp
+            continue
+          }
+
+          let latency = 180
+          if (prevT !== null) {
+            const diff = k.timestamp - prevT
+            if (diff > 30 && diff < 1500) latency = diff
+          }
+          prevT = k.timestamp
+
+          const existing = charDeltas.get(char) || { totalTyped: 0, correctCount: 0, errorCount: 0, totalLatencyMs: 0 }
+          existing.totalTyped += 1
+          existing.correctCount += k.isCorrect ? 1 : 0
+          existing.errorCount += k.isCorrect ? 0 : 1
+          existing.totalLatencyMs += latency
+          charDeltas.set(char, existing)
+        }
+
+        const letterDeltas = Array.from(charDeltas.entries()).map(([char, data]) => ({
+          char,
+          ...data,
+        }))
+
+        if (letterDeltas.length > 0) {
+          fetch("/api/letter-stats", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ letterDeltas }),
+          }).catch((err) => {
+            console.error("[letter-stats] Silent letter metrics submission error:", err?.message || err)
+          })
+        }
+      }
+    }
+
+    // 3. Submit leaderboard score to server if logged in
     if (currentUser) {
       fetch("/api/leaderboard", {
         method: "POST",
@@ -110,7 +165,7 @@ export function ResultCard({
         console.error("[leaderboard] Silent score submission error:", err?.message || err)
       })
     }
-  }, [currentUser, stats, timeLimit, typingMode])
+  }, [currentUser, stats, timeLimit, typingMode, keystrokes])
 
   // In-depth diagnostics computations
   const burstWpm = useMemo(() => {

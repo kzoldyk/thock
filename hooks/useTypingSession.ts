@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { TypingStats, WordData, SessionState, Keystroke, LayoutId } from "@/types"
-import { generateWords } from "@/lib/words"
+import { generateWords, generateAdaptiveWords } from "@/lib/words"
+import { getLocalLetterGrip } from "@/lib/letter-grip"
 import {
   createWords,
   processKey,
@@ -44,6 +45,7 @@ export interface TypingSessionAPI {
   releaseVirtualKey: (code: string) => void
   handleDirectInput: (char: string) => void
   getHistory: () => StatsSample[]
+  getKeystrokes: () => Keystroke[]
 }
 
 export const DEV_QUOTES = [
@@ -94,10 +96,11 @@ function getTargetTextForMode(
   seed: number,
   complexWords?: boolean,
 ): string[] {
+  const gripProfile = getLocalLetterGrip()
   if (mode === "time") {
-    return generateWords(150, seed, complexWords)
+    return generateAdaptiveWords(150, { gripProfile, seed, complex: complexWords, weakRatio: 0.10 })
   } else if (mode === "words") {
-    return generateWords(25, seed, complexWords)
+    return generateAdaptiveWords(25, { gripProfile, seed, complex: complexWords, weakRatio: 0.10 })
   } else if (mode === "code") {
     return getCodeSnippetForSeed(seed)
   } else {
@@ -684,5 +687,6 @@ export function useTypingSession(
     releaseVirtualKey,
     handleDirectInput,
     getHistory: () => historyRef.current.toArray(),
+    getKeystrokes: () => [...sessionRef.current.keystrokes],
   }
 }
