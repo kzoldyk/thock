@@ -198,5 +198,19 @@ describe("Letter Mastery & Adaptive Word Generation", () => {
         expect(targetWords.length).toBeGreaterThanOrEqual(1)
       }
     })
+
+    it("generates words starting with a diverse mix of letters", () => {
+      const words = generateAdaptiveWords(25, { testCount: 0, seed: 42 })
+      const firstLetters = new Set(words.map((w) => w[0].toLowerCase()))
+      // In 25 words, we should have words starting with at least 10 different letters
+      expect(firstLetters.size).toBeGreaterThanOrEqual(10)
+    })
+
+    it("ensures zero duplicate words in a standard test session", () => {
+      const words = generateAdaptiveWords(25, { testCount: 0, seed: 100 })
+      expect(words.length).toBe(25)
+      const uniqueWords = new Set(words)
+      expect(uniqueWords.size).toBe(25)
+    })
   })
 })

@@ -58,11 +58,11 @@ export function getLetterMasteryStatus(
 
   for (const ch of ALPHABET) {
     const stat = letters[ch]
-    const isTested = stat && stat.totalTyped >= 3
+    const isTested = stat && stat.totalTyped >= 5
 
     if (isTested) {
-      // If accuracy is high (>=90%) and grip is good (>=80) and error rate is low
-      if (stat.accuracy >= 90 && stat.gripScore >= 80 && stat.errorCount === 0) {
+      // If accuracy is good (>=80%) or grip score is solid (>=70)
+      if (stat.accuracy >= 80 || stat.gripScore >= 70) {
         comfortable.push(ch)
       } else {
         weakTested.push({
@@ -73,7 +73,7 @@ export function getLetterMasteryStatus(
         })
       }
     } else {
-      // Untested or minimally tested (< 3 keystrokes)
+      // Untested or minimally tested (< 5 keystrokes)
       if (DEFAULT_COMFORTABLE_LETTERS.includes(ch)) {
         comfortable.push(ch)
       } else {
@@ -82,10 +82,10 @@ export function getLetterMasteryStatus(
     }
   }
 
-  // Sort weak tested letters: highest errors first, then lowest accuracy, then lowest grip
+  // Sort weak tested letters: lowest accuracy first, then highest errors, then lowest grip
   weakTested.sort((a, b) => {
-    if (b.errorCount !== a.errorCount) return b.errorCount - a.errorCount
     if (a.accuracy !== b.accuracy) return a.accuracy - b.accuracy
+    if (b.errorCount !== a.errorCount) return b.errorCount - a.errorCount
     return a.gripScore - b.gripScore
   })
 
@@ -96,7 +96,7 @@ export function getLetterMasteryStatus(
   ]
 
   // Ensure comfortable set has at least core letters so words can always be constructed
-  if (comfortable.length < 5) {
+  if (comfortable.length < 10) {
     for (const ch of DEFAULT_COMFORTABLE_LETTERS) {
       if (!comfortable.includes(ch)) {
         comfortable.push(ch)
