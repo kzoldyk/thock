@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { TypingStats, WordData, SessionState, Keystroke, LayoutId } from "@/types"
-import { generateWords, generateAdaptiveWords } from "@/lib/words"
+import { generateAdaptiveWords } from "@/lib/words"
 import { getLocalLetterGrip } from "@/lib/letter-grip"
+import { getLocalHistory } from "@/lib/user-stats"
 import {
   createWords,
   processKey,
@@ -97,10 +98,13 @@ function getTargetTextForMode(
   complexWords?: boolean,
 ): string[] {
   const gripProfile = getLocalLetterGrip()
+  const history = getLocalHistory()
+  const testCount = history.length
+
   if (mode === "time") {
-    return generateAdaptiveWords(150, { gripProfile, seed, complex: complexWords, weakRatio: 0.10 })
+    return generateAdaptiveWords(150, { gripProfile, testCount, seed, complex: complexWords })
   } else if (mode === "words") {
-    return generateAdaptiveWords(25, { gripProfile, seed, complex: complexWords, weakRatio: 0.10 })
+    return generateAdaptiveWords(25, { gripProfile, testCount, seed, complex: complexWords })
   } else if (mode === "code") {
     return getCodeSnippetForSeed(seed)
   } else {

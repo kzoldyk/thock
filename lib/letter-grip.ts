@@ -25,6 +25,96 @@ export interface UserGripProfile {
 
 export const ALPHABET = "abcdefghijklmnopqrstuvwxyz".split("")
 
+export const DEFAULT_COMFORTABLE_LETTERS = [
+  "e", "t", "a", "o", "i", "n", "s", "h", "r", "d",
+  "l", "c", "u", "m", "w", "f", "g", "y", "p", "b"
+]
+
+export const DEFAULT_TRICKY_LETTERS = ["k", "v", "j", "x", "z", "q"]
+
+export interface LetterMasteryStatus {
+  comfortableLetters: string[]
+  uncomfortableLetters: string[]
+  targetLetter: string | null
+  isInitialComfortPhase: boolean
+}
+
+/**
+ * Computes the active letter mastery status:
+ * - Identifies comfortable letters (accuracy >= 90%, grip >= 80, 0 errors, or default comfortable letters).
+ * - Identifies uncomfortable letters (tested with errors/low accuracy/low grip, followed by tricky unmastered letters).
+ * - If testCount < 10: initial 10 sessions are 100% comfortable words (targetLetter is null).
+ * - If testCount >= 10: targetLetter is the single top priority uncomfortable letter.
+ */
+export function getLetterMasteryStatus(
+  gripProfile?: UserGripProfile | null,
+  testCount: number = 0
+): LetterMasteryStatus {
+  const letters = gripProfile?.letters || {}
+
+  const comfortable: string[] = []
+  const weakTested: { char: string; accuracy: number; gripScore: number; errorCount: number }[] = []
+  const untestedTricky: string[] = []
+
+  for (const ch of ALPHABET) {
+    const stat = letters[ch]
+    const isTested = stat && stat.totalTyped >= 3
+
+    if (isTested) {
+      // If accuracy is high (>=90%) and grip is good (>=80) and error rate is low
+      if (stat.accuracy >= 90 && stat.gripScore >= 80 && stat.errorCount === 0) {
+        comfortable.push(ch)
+      } else {
+        weakTested.push({
+          char: ch,
+          accuracy: stat.accuracy,
+          gripScore: stat.gripScore,
+          errorCount: stat.errorCount,
+        })
+      }
+    } else {
+      // Untested or minimally tested (< 3 keystrokes)
+      if (DEFAULT_COMFORTABLE_LETTERS.includes(ch)) {
+        comfortable.push(ch)
+      } else {
+        untestedTricky.push(ch)
+      }
+    }
+  }
+
+  // Sort weak tested letters: highest errors first, then lowest accuracy, then lowest grip
+  weakTested.sort((a, b) => {
+    if (b.errorCount !== a.errorCount) return b.errorCount - a.errorCount
+    if (a.accuracy !== b.accuracy) return a.accuracy - b.accuracy
+    return a.gripScore - b.gripScore
+  })
+
+  // Prioritized uncomfortable letters queue
+  const uncomfortable = [
+    ...weakTested.map((w) => w.char),
+    ...untestedTricky.sort((a, b) => DEFAULT_TRICKY_LETTERS.indexOf(a) - DEFAULT_TRICKY_LETTERS.indexOf(b)),
+  ]
+
+  // Ensure comfortable set has at least core letters so words can always be constructed
+  if (comfortable.length < 5) {
+    for (const ch of DEFAULT_COMFORTABLE_LETTERS) {
+      if (!comfortable.includes(ch)) {
+        comfortable.push(ch)
+      }
+    }
+  }
+
+  const isInitialComfortPhase = testCount < 10
+  const targetLetter = !isInitialComfortPhase && uncomfortable.length > 0 ? uncomfortable[0] : null
+
+  return {
+    comfortableLetters: comfortable,
+    uncomfortableLetters: uncomfortable,
+    targetLetter,
+    isInitialComfortPhase,
+  }
+}
+
 /**
  * Standard baseline initialization for a single character.
  */
