@@ -716,6 +716,7 @@ export default function Home() {
     handleDirectInput,
     getHistory,
     getKeystrokes,
+    getTargetText,
   } = useTypingSession(keyboardRef, layoutId, !windowFocused || activeTab !== "Practice")
 
   const volume = useAppStore((s) => s.volume)
@@ -1109,6 +1110,8 @@ export default function Home() {
                       onViewLeaderboard={() => setActiveTab("Leaderboard")}
                       onViewStatistics={() => setActiveTab("Statistics")}
                       keystrokes={getKeystrokes()}
+                      words={words}
+                      targetText={getTargetText()}
                     />
                   </div>
                 ) : (

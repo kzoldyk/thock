@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils"
 import { useAppStore } from "@/stores/useAppStore"
 import { saveLocalTestResult } from "@/lib/user-stats"
 import { saveLocalLetterGrip } from "@/lib/letter-grip"
+import { recordSessionTelemetry } from "@/lib/adaptive"
 
 interface Props {
   stats: TypingStats
@@ -36,6 +37,8 @@ interface Props {
   onViewLeaderboard?: () => void
   onViewStatistics?: () => void
   keystrokes?: Keystroke[]
+  words?: any[]
+  targetText?: string[]
 }
 
 function getRankTitle(wpm: number) {
@@ -58,6 +61,8 @@ export function ResultCard({
   onViewLeaderboard,
   onViewStatistics,
   keystrokes,
+  words,
+  targetText,
 }: Props) {
   const isPerfect = stats.accuracy === 100 && stats.totalTyped > 0
   const isPb = stats.wpm > 100
@@ -93,9 +98,10 @@ export function ResultCard({
       mode: typingMode || "time",
     })
 
-    // 2. Track & save granular letter-wise grip
+    // 2. Track & save granular letter-wise grip and adaptive model telemetry
     if (keystrokes && keystrokes.length > 0) {
       saveLocalLetterGrip(keystrokes)
+      recordSessionTelemetry(keystrokes, words || [], targetText || [])
 
       if (currentUser) {
         // Aggregate per-character deltas for this session

@@ -2,6 +2,7 @@ import {
   type UserGripProfile,
   getLetterMasteryStatus,
 } from "./letter-grip"
+import { generatePersonalizedWords } from "./adaptive"
 
 export const commonWords = [
   "mist", "rim", "who", "shell", "stock", "proven", "kink", "hot", "circuit", "blade",
@@ -436,7 +437,7 @@ function pickUniqueWords(
   return result
 }
 
-function applyComplexity(words: string[], seed: number): string[] {
+export function applyComplexity(words: string[], seed: number): string[] {
   const rng = mulberry32(seed)
 
   return words.map((word) => {
@@ -484,114 +485,48 @@ export function generateWords(count: number = 30, seed?: number, complex: boolea
 
 export interface AdaptiveWordOptions {
   gripProfile?: UserGripProfile | null
+  profile?: any
   testCount?: number
   seed?: number
   complex?: boolean
+  strategy?: "balanced" | "performance" | "training" | "challenge"
+  recentWords?: string[]
 }
 
 /**
- * Generates words implementing the Progressive Letter Mastery Strategy:
- * 1. For the first 10 typings (testCount < 10):
- *    - 100% of words are composed of familiar, comfortable natural English words.
- *    - Tricky letters are excluded, maintaining high WPM, high accuracy, and natural confidence.
- *    - 100% unique words (no repeating identical words in a single test).
- * 2. After 10 typings (testCount >= 10):
- *    - Identifies exactly ONE targeted uncomfortable letter from user weaknesses.
- *    - Smoothly injects 1-2 targeted natural common words containing that letter.
- *    - The remaining >=90% of words are comfortable words.
- *    - Once the user achieves proficiency (>=90% accuracy), it graduates and the next letter is queued.
+ * Generates personalized words using the closed-loop adaptive typing engine.
  */
 export function generateAdaptiveWords(
   count: number = 30,
   options: AdaptiveWordOptions = {}
 ): string[] {
-  const {
-    gripProfile,
-    testCount = 0,
-    seed = Date.now(),
-    complex = false,
-  } = options
+  // Import dynamically or load from adaptive engine
+  let userProfile = options.profile
 
-  const { comfortableLetters, targetLetter, isInitialComfortPhase } = getLetterMasteryStatus(
-    gripProfile,
-    testCount
-  )
-
-  const comfortableMask = charsToBitmask(comfortableLetters)
-
-  // 1. Find pure comfortable words (words containing ONLY comfortable letters)
-  const comfortableWords: string[] = []
-  for (let i = 0; i < commonWords.length; i++) {
-    const word = commonWords[i]
-    const mask = WORD_BITMASKS.get(word) || wordToBitmask(word)
-    if ((mask & ~comfortableMask) === 0) {
-      comfortableWords.push(word)
+  if (!userProfile && options.gripProfile) {
+    // If legacy gripProfile is supplied, wrap it in a UserTypingProfile
+    userProfile = {
+      letters: options.gripProfile.letters || {},
+      words: {},
+      ngrams: {},
+      weaknesses: [],
+      testCount: options.testCount || 0,
+      lastUpdatedAt: Date.now(),
     }
   }
 
-  // Phase 1: First 10 typings or no target letter -> 100% comfortable unique words
-  if (isInitialComfortPhase || !targetLetter) {
-    const picked = pickUniqueWords(comfortableWords, commonWords, count, seed)
-    if (!complex) return picked
-    return applyComplexity(picked, seed)
-  }
-
-  // Phase 2: After 10 typings -> inject ONE targeted uncomfortable letter
-  const targetCode = targetLetter.toLowerCase().charCodeAt(0) - 97
-  const targetBit = 1 << targetCode
-  const allowedWithTargetMask = comfortableMask | targetBit
-
-  // Find targeted words that contain targetLetter AND where other letters are comfortable
-  const targetedWords: string[] = []
-  for (let i = 0; i < commonWords.length; i++) {
-    const word = commonWords[i]
-    const mask = WORD_BITMASKS.get(word) || wordToBitmask(word)
-    if ((mask & targetBit) !== 0 && (mask & ~allowedWithTargetMask) === 0) {
-      targetedWords.push(word)
-    }
-  }
-
-  const fallbackTargetPool = commonWords.filter((w) => w.toLowerCase().includes(targetLetter))
-  const targetPool = targetedWords.length > 0 ? targetedWords : fallbackTargetPool
-
-  if (targetPool.length === 0) {
-    const picked = pickUniqueWords(comfortableWords, commonWords, count, seed)
-    if (!complex) return picked
-    return applyComplexity(picked, seed)
-  }
-
-  // Target drill word count: 1-2 words for standard sessions, 3-5 for long sessions
-  const targetDrillCount = Math.max(1, Math.min(6, Math.round(count * 0.05)))
-  const comfortableCount = Math.max(1, count - targetDrillCount)
-
-  const pickedComfortable = pickUniqueWords(comfortableWords, commonWords, comfortableCount, seed)
-  const pickedTarget = pickUniqueWords(targetPool, fallbackTargetPool, targetDrillCount, seed + 101)
-
-  // Interleave the targeted words smoothly across the test (e.g. 1 targeted word every ~15-20 words)
-  const result: string[] = []
-  const interval = Math.max(1, Math.floor(count / targetDrillCount))
-
-  let targetIdx = 0
-  let comfortIdx = 0
-
-  for (let i = 0; i < count; i++) {
-    const isTargetSlot = (i + 1) % interval === 0 && targetIdx < pickedTarget.length
-    if (isTargetSlot || comfortIdx >= pickedComfortable.length) {
-      if (targetIdx < pickedTarget.length) {
-        result.push(pickedTarget[targetIdx++])
-      } else if (comfortIdx < pickedComfortable.length) {
-        result.push(pickedComfortable[comfortIdx++])
-      }
-    } else {
-      result.push(pickedComfortable[comfortIdx++])
-    }
-  }
-
-  if (!complex) return result
-  return applyComplexity(result, seed)
+  return generatePersonalizedWords(count, {
+    profile: userProfile,
+    testCount: options.testCount,
+    seed: options.seed,
+    complex: options.complex,
+    strategy: options.strategy,
+    recentWords: options.recentWords,
+  })
 }
 
 export function generateSentence(): string {
   return generateWords(8).join(" ")
 }
+
 

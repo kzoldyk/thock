@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { TypingStats, WordData, SessionState, Keystroke, LayoutId } from "@/types"
 import { generateAdaptiveWords } from "@/lib/words"
-import { getLocalLetterGrip } from "@/lib/letter-grip"
+import { getLocalAdaptiveProfile } from "@/lib/adaptive"
 import { getLocalHistory } from "@/lib/user-stats"
 import {
   createWords,
@@ -47,6 +47,7 @@ export interface TypingSessionAPI {
   handleDirectInput: (char: string) => void
   getHistory: () => StatsSample[]
   getKeystrokes: () => Keystroke[]
+  getTargetText: () => string[]
 }
 
 export const DEV_QUOTES = [
@@ -97,14 +98,14 @@ function getTargetTextForMode(
   seed: number,
   complexWords?: boolean,
 ): string[] {
-  const gripProfile = getLocalLetterGrip()
+  const profile = getLocalAdaptiveProfile()
   const history = getLocalHistory()
   const testCount = history.length
 
   if (mode === "time") {
-    return generateAdaptiveWords(150, { gripProfile, testCount, seed, complex: complexWords })
+    return generateAdaptiveWords(150, { profile, testCount, seed, complex: complexWords })
   } else if (mode === "words") {
-    return generateAdaptiveWords(25, { gripProfile, testCount, seed, complex: complexWords })
+    return generateAdaptiveWords(25, { profile, testCount, seed, complex: complexWords })
   } else if (mode === "code") {
     return getCodeSnippetForSeed(seed)
   } else {
@@ -692,5 +693,6 @@ export function useTypingSession(
     handleDirectInput,
     getHistory: () => historyRef.current.toArray(),
     getKeystrokes: () => [...sessionRef.current.keystrokes],
+    getTargetText: () => [...sessionRef.current.targetText],
   }
 }
