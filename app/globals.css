@@ -39,14 +39,41 @@
 .font-jetbrains-mono {
   font-family: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-feature-settings: "liga" 0, "calt" 0;
+  font-variant-ligatures: none;
 }
 
 .font-ibm-plex-mono {
   font-family: var(--font-ibm-plex-mono), "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-ligatures: none;
 }
 
 .font-source-code-pro {
   font-family: var(--font-source-code-pro), "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-ligatures: none;
+}
+
+/* Typing area — tuned spacing for word display */
+.typing-words {
+  font-variant-numeric: tabular-nums;
+  text-rendering: optimizeLegibility;
+}
+
+.typing-words-mono {
+  letter-spacing: 0.02em;
+  word-spacing: 0.35em;
+}
+
+.typing-words-sans {
+  letter-spacing: -0.01em;
+  word-spacing: 0.28em;
+}
+
+.typing-char {
+  display: inline;
+}
+
+.typing-char-mono {
+  letter-spacing: inherit;
 }
 
 @media (prefers-color-scheme: dark) {

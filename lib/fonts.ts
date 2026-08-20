@@ -1,5 +1,13 @@
 import type { FontFamily } from "@/types"
 
+export function isMonoFont(fontFamily: FontFamily): boolean {
+  return (
+    fontFamily === "jetbrains-mono" ||
+    fontFamily === "ibm-plex-mono" ||
+    fontFamily === "source-code-pro"
+  )
+}
+
 export function getFontClass(fontFamily: FontFamily): string {
   switch (fontFamily) {
     case "inter":

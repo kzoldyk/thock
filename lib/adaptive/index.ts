@@ -44,7 +44,11 @@ export function generatePersonalizedWords(
 
   const context: GenerationContext = {
     count,
-    strategy: options.strategy || "balanced",
+    strategy:
+      options.strategy ||
+      (userState.state === "calibrating" || (options.testCount ?? history.length) < 5
+        ? "performance"
+        : "balanced"),
     seed: options.seed ?? Date.now(),
     recentWords: options.recentWords || [],
     userState,

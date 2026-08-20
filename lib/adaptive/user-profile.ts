@@ -30,7 +30,7 @@ export function deriveUserTypingState(
       wpmTrend: 0,
       accuracyTrend: 0,
       consistency: 80,
-      difficultyLevel: 0.35, // Balanced baseline difficulty during calibration
+      difficultyLevel: 0.22, // Gentle baseline — prioritize flow and confidence for new users
       confidence: Math.min(0.3, testCount * 0.1),
       momentumScore: 0.5,
       state: "calibrating",
@@ -102,7 +102,7 @@ export function deriveUserTypingState(
   let targetDifficulty = 0.45
   switch (state) {
     case "calibrating":
-      targetDifficulty = 0.35
+      targetDifficulty = 0.22
       break
     case "struggling":
       targetDifficulty = Math.max(0.15, 0.3 - (100 - recentAccuracy) * 0.01)

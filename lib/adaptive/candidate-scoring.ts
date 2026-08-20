@@ -37,10 +37,13 @@ export function scoreCandidateWord(
   const strategy = context.strategy || "balanced"
   const userProfile = context.userProfile
   const userState = context.userState
+  const isCalibrating = userState?.state === "calibrating" || (context.testCount ?? 0) < 5
   let weights = { ...(STRATEGY_WEIGHTS[strategy] || STRATEGY_WEIGHTS.balanced) }
 
-  // If scoring specifically for an easy slot, focus on performance/flow over weakness drilling
-  if (slotBand === "easy") {
+  // New users: pure performance mode — no weakness drilling yet
+  if (isCalibrating) {
+    weights = { perf: 0.82, learn: 0.03, imp: 0.03, exp: 0.04, div: 0.08 }
+  } else if (slotBand === "easy") {
     weights = { perf: 0.75, learn: 0.05, imp: 0.05, exp: 0.05, div: 0.1 }
   } else if (slotBand === "medium" || slotBand === "hard") {
     weights = { perf: 0.25, learn: 0.5, imp: 0.12, exp: 0.08, div: 0.05 }
@@ -60,8 +63,14 @@ export function scoreCandidateWord(
     const accScore = Math.pow(wProfile.recentAccuracy / 100, 2)
     performanceValue = Math.min(1.0, speedRatio * 0.55 + accScore * 0.45)
   } else {
-    // Unobserved words: inversely proportional to difficulty
+    // Unobserved words: favor intrinsically easy words for flow
     performanceValue = Math.max(0.1, 1.0 - effDiff * 0.9)
+    // Short common words feel fast — boost for new-user engagement
+    if (clean.length <= 4) {
+      performanceValue = Math.min(1.0, performanceValue + 0.18)
+    } else if (clean.length <= 5) {
+      performanceValue = Math.min(1.0, performanceValue + 0.08)
+    }
   }
 
   // 2. Learning Value: coverage of known user weaknesses
@@ -101,7 +110,7 @@ export function scoreCandidateWord(
   // 4. Exploration Value: discovering unobserved or low-confidence words
   let explorationValue = 0.1
   if (!wProfile || wProfile.attempts === 0) {
-    explorationValue = 0.85
+    explorationValue = isCalibrating ? 0.15 : 0.85
   } else {
     explorationValue = Math.max(0.05, 1.0 - wProfile.confidence)
   }

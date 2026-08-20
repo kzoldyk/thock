@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import type { WordData, SessionState } from "@/types"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/stores/useAppStore"
-import { getFontClass } from "@/lib/fonts"
+import { getFontClass, isMonoFont } from "@/lib/fonts"
 
 interface WordsDisplayProps {
   words: WordData[]
@@ -30,11 +30,11 @@ export const WordsDisplay = memo(function WordsDisplay({
 
   const [translateX, setTranslateX] = useState(0)
   const [translateY, setTranslateY] = useState(0)
-  const [caretPos, setCaretPos] = useState({ left: 0, top: 0, height: 36 })
+  const [caretPos, setCaretPos] = useState({ left: 0, top: 0, height: 32 })
 
   const fontClass = useMemo(() => getFontClass(fontFamily), [fontFamily])
+  const mono = useMemo(() => isMonoFont(fontFamily), [fontFamily])
 
-  // Recalculate horizontal or vertical translation
   const updateScroll = useCallback(() => {
     if (paragraphMode) {
       setTranslateX(0)
@@ -44,7 +44,6 @@ export const WordsDisplay = memo(function WordsDisplay({
 
         const wordTop = activeWord.offsetTop
 
-        // Find the offsetTop of the second line to detect line height & boundary
         const children = rowEl.children
         let line0Top = -1
         let line1Top = -1
@@ -60,8 +59,6 @@ export const WordsDisplay = memo(function WordsDisplay({
           }
         }
 
-        // Keep lines 0 & 1 stationary at top (translateY = 0)
-        // From line 2 onward, scroll up so active line is always positioned at line 1 (the middle line)
         if (line1Top > line0Top && wordTop > line1Top) {
           setTranslateY(-(wordTop - line1Top))
         } else {
@@ -79,8 +76,7 @@ export const WordsDisplay = memo(function WordsDisplay({
       const activeLeft = activeEl.offsetLeft
       const containerWidth = containerEl.offsetWidth
 
-      // Align active word at 25% of container width for typewriter scrolling
-      const targetX = -activeLeft + containerWidth * 0.25
+      const targetX = -activeLeft + containerWidth * 0.22
       setTranslateX(targetX)
     }
   }, [paragraphMode])
@@ -91,7 +87,6 @@ export const WordsDisplay = memo(function WordsDisplay({
     return () => window.removeEventListener("resize", updateScroll)
   }, [currentWordIndex, updateScroll])
 
-  // Precise measurement of active character relative to scrollingRowRef
   useEffect(() => {
     const updateCaret = () => {
       if (activeCharRef.current && scrollingRowRef.current && activeWordRef.current) {
@@ -99,10 +94,9 @@ export const WordsDisplay = memo(function WordsDisplay({
         const rowRect = scrollingRowRef.current.getBoundingClientRect()
         const wordEl = activeWordRef.current
 
-        // Calculate steady line-based top & height from the word container to prevent vertical jitter
         const wordTop = wordEl.offsetTop
-        const wordHeight = wordEl.offsetHeight || 48
-        const caretHeight = Math.round(wordHeight * 0.68)
+        const wordHeight = wordEl.offsetHeight || 40
+        const caretHeight = Math.round(wordHeight * 0.72)
         const caretTop = wordTop + Math.round((wordHeight - caretHeight) / 2)
 
         setCaretPos({
@@ -116,7 +110,7 @@ export const WordsDisplay = memo(function WordsDisplay({
     updateCaret()
     window.addEventListener("resize", updateCaret)
     return () => window.removeEventListener("resize", updateCaret)
-  }, [currentWordIndex, currentCharIndex, words, paragraphMode])
+  }, [currentWordIndex, currentCharIndex, words, paragraphMode, fontFamily])
 
   const elements = useMemo(() => {
     const result: React.ReactNode[] = []
@@ -133,14 +127,14 @@ export const WordsDisplay = memo(function WordsDisplay({
           <span
             key={`${wi}-${ci}`}
             ref={isCurrentChar ? activeCharRef : undefined}
-            className="relative inline-block"
+            className={cn("typing-char", mono && "typing-char-mono")}
           >
             <span
               className={cn(
                 "transition-colors duration-75",
                 state === "untyped" &&
                   (isCurrentWord
-                    ? "text-[var(--foreground)] opacity-90"
+                    ? "text-[var(--foreground)] opacity-95"
                     : "text-[var(--foreground)] opacity-100"),
                 state === "correct" && "text-[var(--foreground)] opacity-35",
                 state === "incorrect" &&
@@ -155,7 +149,6 @@ export const WordsDisplay = memo(function WordsDisplay({
         )
       })
 
-      // Perfect word sparkle
       if (word.isPerfect && wi === currentWordIndex - 1) {
         chars.push(
           <span
@@ -167,13 +160,12 @@ export const WordsDisplay = memo(function WordsDisplay({
         )
       }
 
-      // Caret spacer when at end of current word
       if (isCurrentWord && currentCharIndex >= word.chars.length) {
         chars.push(
           <span
             key={`c-end-wrapper-${wi}`}
             ref={activeCharRef}
-            className="inline-block w-0 overflow-visible"
+            className="inline w-0 overflow-visible"
           >
             &#8203;
           </span>
@@ -185,21 +177,18 @@ export const WordsDisplay = memo(function WordsDisplay({
           key={wi}
           ref={isCurrentWord ? activeWordRef : undefined}
           className={cn(
-            "inline-flex transition-opacity duration-150 relative select-none",
-            paragraphMode
-              ? "mr-3 sm:mr-3.5 md:mr-4"
-              : "mr-6 whitespace-nowrap shrink-0",
+            "inline-flex items-baseline transition-opacity duration-150 relative select-none shrink-0",
             paragraphMode
               ? wi < currentWordIndex
-                ? "opacity-35 font-normal"
+                ? "opacity-35"
                 : wi === currentWordIndex
-                ? "opacity-100 font-normal"
-                : "opacity-55 font-normal"
+                ? "opacity-100"
+                : "opacity-55"
               : wi < currentWordIndex
-              ? "opacity-25 font-normal"
+              ? "opacity-30"
               : wi === currentWordIndex
-              ? "opacity-100 font-normal"
-              : "opacity-25 font-normal"
+              ? "opacity-100"
+              : "opacity-30"
           )}
         >
           {chars}
@@ -207,36 +196,37 @@ export const WordsDisplay = memo(function WordsDisplay({
       )
     })
     return result
-  }, [words, currentWordIndex, currentCharIndex, paragraphMode])
+  }, [words, currentWordIndex, currentCharIndex, paragraphMode, mono])
 
   return (
     <div
       ref={containerRef}
       className={cn(
-        "w-full max-w-[950px] mx-auto px-4 sm:px-8 select-none overflow-hidden relative transition-all duration-300",
-        showKeyboard ? "my-2 sm:my-3" : "my-4 sm:my-6",
+        "w-full max-w-[min(950px,100vw-1rem)] mx-auto px-3 sm:px-6 md:px-8 select-none overflow-hidden relative transition-all duration-300",
+        showKeyboard ? "my-2 sm:my-3" : "my-3 sm:my-5",
         paragraphMode
-          ? "h-[7.5rem] sm:h-[9rem] md:h-[10.5rem]"
-          : "h-auto py-1 sm:py-2"
+          ? "h-[6.5rem] xs:h-[7.5rem] sm:h-[9rem] md:h-[10rem]"
+          : "h-auto min-h-[2.75rem] sm:min-h-[3.5rem] py-1 sm:py-2"
       )}
       style={
         paragraphMode
           ? undefined
           : {
               maskImage:
-                "linear-gradient(to right, transparent 0%, white 12%, white 88%, transparent 100%)",
+                "linear-gradient(to right, transparent 0%, white 10%, white 90%, transparent 100%)",
               WebkitMaskImage:
-                "linear-gradient(to right, transparent 0%, white 12%, white 88%, transparent 100%)",
+                "linear-gradient(to right, transparent 0%, white 10%, white 90%, transparent 100%)",
             }
       }
     >
       <div
         ref={scrollingRowRef}
         className={cn(
-          "text-[var(--foreground)] transition-transform duration-200 ease-out relative",
+          "typing-words text-[var(--foreground)] transition-transform duration-200 ease-out relative",
+          mono ? "typing-words-mono font-medium" : "typing-words-sans font-normal",
           paragraphMode
-            ? "text-xl sm:text-2xl md:text-[1.75rem] leading-[2.5rem] sm:leading-[3rem] md:leading-[3.5rem] tracking-normal flex flex-wrap justify-start items-baseline content-start"
-            : "text-2xl xs:text-3xl sm:text-4xl leading-relaxed flex flex-nowrap items-center whitespace-nowrap tracking-tight",
+            ? "flex flex-wrap justify-start items-baseline content-start gap-x-[0.35em] gap-y-0 leading-[1.65] text-[clamp(1.125rem,4.2vw,1.75rem)]"
+            : "flex flex-nowrap items-baseline whitespace-nowrap gap-x-[0.45em] leading-[1.5] text-[clamp(1.25rem,5vw,2.25rem)]",
           fontClass
         )}
         style={{
@@ -245,7 +235,6 @@ export const WordsDisplay = memo(function WordsDisplay({
             : `translateX(${translateX}px)`,
         }}
       >
-        {/* Floating Spring Caret */}
         <motion.div
           animate={{
             x: caretPos.left - 1,
@@ -259,7 +248,7 @@ export const WordsDisplay = memo(function WordsDisplay({
             mass: 0.4,
           }}
           className={cn(
-            "absolute left-0 w-[2.5px] bg-[var(--accent)] rounded-full pointer-events-none z-30 shadow-[0_0_8px_rgba(var(--accent-rgb),0.3)]",
+            "absolute left-0 w-[2px] sm:w-[2.5px] bg-[var(--accent)] rounded-full pointer-events-none z-30 shadow-[0_0_8px_rgba(var(--accent-rgb),0.3)]",
             sessionState === "typing" ? "opacity-100" : "animate-smooth-blink"
           )}
         />
@@ -268,4 +257,3 @@ export const WordsDisplay = memo(function WordsDisplay({
     </div>
   )
 })
-

@@ -24,12 +24,44 @@ interface BandDistribution {
 }
 
 const STATE_DISTRIBUTIONS: Record<UserStateCategory, BandDistribution> = {
-  calibrating: { easy: 0.7, medium: 0.2, hard: 0.1 },
-  struggling: { easy: 0.85, medium: 0.12, hard: 0.03 },
-  stable: { easy: 0.7, medium: 0.22, hard: 0.08 },
+  calibrating: { easy: 0.92, medium: 0.07, hard: 0.01 },
+  struggling: { easy: 0.88, medium: 0.1, hard: 0.02 },
+  stable: { easy: 0.72, medium: 0.2, hard: 0.08 },
   flow: { easy: 0.58, medium: 0.27, hard: 0.15 },
   mastering: { easy: 0.45, medium: 0.35, hard: 0.2 },
 }
+
+/** Words that feel fast to type — short, common, home-row friendly */
+const FLOW_WORDS = new Set([
+  "the", "and", "for", "are", "but", "not", "you", "all", "can", "had",
+  "her", "was", "one", "our", "out", "day", "get", "has", "him", "his",
+  "how", "man", "new", "now", "old", "see", "two", "way", "who", "boy",
+  "did", "its", "let", "may", "put", "say", "she", "too", "use", "run",
+  "eat", "far", "hot", "lot", "low", "mix", "net", "red", "set", "sun",
+  "top", "win", "yes", "yet", "big", "car", "cat", "dog", "fun", "go",
+  "hi", "job", "key", "law", "map", "men", "pay", "pop", "raw", "sea",
+  "sit", "sky", "try", "war", "web", "add", "age", "air", "arm", "art",
+  "bad", "bag", "bed", "bee", "box", "bus", "buy", "cap", "cup", "cut",
+  "dry", "due", "egg", "end", "eye", "fit", "fix", "fly", "gap", "gas",
+  "god", "guy", "hit", "ice", "ink", "joy", "kid", "lay", "leg", "lie",
+  "lip", "log", "mad", "met", "mid", "mix", "mud", "nod", "oak", "oil",
+  "pad", "pan", "pat", "pen", "pet", "pie", "pin", "pot", "rap", "ray",
+  "row", "rub", "sad", "sap", "saw", "sea", "sin", "sip", "six", "ski",
+  "so", "sob", "sod", "son", "sop", "sow", "soy", "spa", "spy", "sum",
+  "tab", "tag", "tan", "tap", "tax", "tea", "ten", "tie", "tin", "tip",
+  "to", "toe", "ton", "tow", "toy", "van", "vat", "vet", "via", "wet",
+  "why", "wig", "wit", "woe", "wow", "yak", "yam", "yap", "yew", "yip",
+  "zip", "zap", "zen", "time", "like", "make", "take", "come", "give",
+  "look", "work", "know", "want", "good", "best", "fast", "easy", "love",
+  "help", "keep", "feel", "play", "open", "read", "call", "hand", "high",
+  "long", "last", "next", "left", "real", "sure", "safe", "calm", "warm",
+  "cool", "soft", "hard", "deep", "wide", "free", "live", "move", "talk",
+  "walk", "wait", "stop", "start", "flow", "type", "word", "test", "game",
+  "team", "home", "food", "book", "room", "door", "wall", "tree", "rain",
+  "snow", "wind", "fire", "gold", "blue", "pink", "gray", "dark", "light",
+  "clean", "quick", "happy", "great", "small", "large", "short", "sweet",
+  "fresh", "clear", "smart", "lucky", "early", "later", "today", "night",
+])
 
 /**
  * Builds a smooth sequence curve pattern of difficulty bands for the session.
@@ -56,6 +88,14 @@ export function buildSequencePattern(
   const medInterval = mediumCount > 0 ? Math.max(2, Math.floor(count / (mediumCount + 1))) : count + 1
 
   for (let i = 0; i < count; i++) {
+    // Warm-up ramp: first words are always easy for new/calibrating users
+    const warmupCount = state === "calibrating" ? Math.min(12, count) : state === "struggling" ? Math.min(8, count) : 0
+    if (i < warmupCount) {
+      pattern.push("easy")
+      placedEasy++
+      continue
+    }
+
     // Check if hard slot
     const isHardSlot =
       (i + 1) % hardInterval === 0 && placedHard < hardCount && i > 0 && pattern[i - 1] !== "hard"
@@ -109,7 +149,12 @@ export function generateAdaptiveSequence(
     hard: [],
   }
 
-  for (const word of commonWords) {
+  const isNewUser = (context.testCount ?? 0) < 8
+  const candidateWords = isNewUser
+    ? commonWords.filter((w) => FLOW_WORDS.has(w.toLowerCase()))
+    : commonWords
+
+  for (const word of candidateWords.length > 0 ? candidateWords : commonWords) {
     const defaultScore = scoreCandidateWord(word, context, [])
     const band = defaultScore.band
     const slotScore = scoreCandidateWord(word, context, [], band)
@@ -135,8 +180,9 @@ export function generateAdaptiveSequence(
     }
 
     // Filter candidate list with dynamic penalty against current sequence
-    // Top-k selection (take top 15-25% scorers to provide variety without sacrificing quality)
-    const topKSize = Math.max(5, Math.min(25, Math.floor(pool.length * 0.25)))
+    // Top-k selection — tighter pool for new users keeps words familiar and fast
+    const topKFraction = isNewUser ? 0.15 : 0.25
+    const topKSize = Math.max(5, Math.min(25, Math.floor(pool.length * topKFraction)))
     const candidates = pool.slice(0, topKSize)
 
     // Calculate weights with repetition penalty applied to current sequence position
