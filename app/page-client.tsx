@@ -1126,12 +1126,13 @@ export default function Home() {
 
               {/* Keyboard Display Section */}
               {showKeyboard && !zenMode && sessionState !== "finished" && (
-                <div className="relative px-1 xs:px-2 sm:px-8 pb-1 sm:pb-3 max-w-[1000px] w-full mx-auto flex flex-col items-center">
+                <div className="relative px-1 xs:px-2 sm:px-6 pb-2 sm:pb-4 max-w-[900px] w-full mx-auto flex flex-col items-center">
                   {keyboardType === "2d" ? (
                     <Keyboard2D
                       layoutId={layoutId}
                       themeId={keyboardThemeId}
                       activeKeys={activeKeys}
+                      fontClass={fontClass}
                       onKeyPress={pressVirtualKey}
                       onKeyRelease={releaseVirtualKey}
                     />

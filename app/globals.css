@@ -56,16 +56,18 @@
 .typing-words {
   font-variant-numeric: tabular-nums;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .typing-words-mono {
-  letter-spacing: 0.02em;
-  word-spacing: 0.35em;
+  letter-spacing: 0.005em;
+  word-spacing: 0.28em;
 }
 
 .typing-words-sans {
   letter-spacing: -0.01em;
-  word-spacing: 0.28em;
+  word-spacing: 0.25em;
 }
 
 .typing-char {

@@ -224,7 +224,7 @@ export const KeyboardScene = forwardRef<
   }))
 
   return (
-    <div className="w-full h-[190px] xs:h-[230px] sm:h-[320px] md:h-[360px] touch-manipulation">
+    <div className="w-full h-[155px] xs:h-[185px] sm:h-[240px] md:h-[275px] touch-manipulation">
       <Canvas
         camera={{ position: [0, 0.35, 0.55], fov: 38, near: 0.01, far: 10 }}
         dpr={[1, 1.5]}
