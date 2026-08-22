@@ -140,10 +140,14 @@ export function scoreCandidateWord(
   }
 
   // Penalty from previous session's recent words
-  const prevSessionIdx = recentList.lastIndexOf(clean)
-  if (prevSessionIdx !== -1) {
-    const recencyDistance = recentList.length - prevSessionIdx
-    if (recencyDistance <= 5) repetitionPenalty += 0.25
+  // Practice-vocabulary words are exempt — their repetition IS the feature.
+  const practiceSet = context.practiceSet
+  if (!(practiceSet && practiceSet.includes(clean))) {
+    const prevSessionIdx = recentList.lastIndexOf(clean)
+    if (prevSessionIdx !== -1) {
+      const recencyDistance = recentList.length - prevSessionIdx
+      if (recencyDistance <= 5) repetitionPenalty += 0.25
+    }
   }
   repetitionPenalty = Math.min(1.2, repetitionPenalty)
 

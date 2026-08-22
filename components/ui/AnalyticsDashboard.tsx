@@ -16,7 +16,11 @@ import {
   UserCheck,
   ArrowUpDown,
   Lock,
-  KeyRound
+  KeyRound,
+  MessageSquare,
+  Bug,
+  Lightbulb,
+  Heart
 } from "lucide-react";
 import { useAppStore } from "@/stores/useAppStore";
 import { appThemes } from "@/lib/themes";
@@ -86,6 +90,21 @@ interface AnalyticsData {
   };
   recentSessions: RecentSession[];
   visitedUsers: VisitedUser[];
+}
+
+interface FeedbackItem {
+  id: string;
+  type: string;
+  name: string | null;
+  email: string | null;
+  message: string;
+  user_agent: string | null;
+  language: string | null;
+  screen: string | null;
+  os: string | null;
+  is_mocked: number;
+  status: string;
+  created_at: number;
 }
 
 // Helper to get country flag emoji
@@ -203,7 +222,7 @@ export default function AnalyticsDashboard() {
     return new Date().toISOString().split("T")[0];
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "recent" | "users">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "recent" | "users" | "feedback">("overview");
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [filterUserType, setFilterUserType] = useState<"all" | "members" | "guests">("all");
   const [sortBy, setSortBy] = useState<"lastVisited" | "visitCount" | "createdAt">("lastVisited");
@@ -211,13 +230,45 @@ export default function AnalyticsDashboard() {
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [hoveredPoint, setHoveredPoint] = useState<{
-    index: number;
+  const [hoveredPoint, setHoveredPoint] = useState<{    index: number;
     x: number;
     yVisits: number;
     yVisitors: number;
     item: DailyTrendItem;
   } | null>(null);
+
+  // Feedback submissions (lazy-loaded when the tab opens)
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
+  const loadFeedback = async () => {
+    setFeedbackLoading(true);
+    setFeedbackError(null);
+    try {
+      const res = await fetch("/api/feedback");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.feedback)) {
+        setFeedbackItems(json.feedback);
+        setFeedbackLoaded(true);
+      } else {
+        setFeedbackError(json.error || "Failed to load feedback.");
+      }
+    } catch {
+      setFeedbackError("Network error while loading feedback.");
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "feedback" && !feedbackLoaded && !feedbackLoading) {
+      const t = setTimeout(loadFeedback, 0);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, feedbackLoaded]);
 
   const verifyAndFetch = async (pwd?: string) => {
     const passwordToUse = pwd ?? (typeof window !== "undefined" ? sessionStorage.getItem("analytics_auth_token") : "") ?? "";
@@ -861,6 +912,19 @@ export default function AnalyticsDashboard() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent)]" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("feedback")}
+            className={`pb-3 font-semibold text-sm transition-colors relative cursor-pointer ${
+              activeTab === "feedback"
+                ? "text-[var(--foreground)]"
+                : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            Feedback ({feedbackItems.length})
+            {activeTab === "feedback" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent)]" />
+            )}
+          </button>
         </div>
 
         {activeTab === "overview" && (
@@ -1460,6 +1524,111 @@ export default function AnalyticsDashboard() {
               })
             )}
             </div>
+          </div>
+        )}
+
+        {activeTab === "feedback" && (
+          <div className="space-y-4">
+            {/* Header row */}
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <p className="text-xs text-[var(--muted)] font-medium">
+                Submissions from the in-app feedback form — stored in the D1 <span className="font-mono">feedback</span> table.
+              </p>
+              <button
+                onClick={loadFeedback}
+                disabled={feedbackLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--chrome-surface-strong)] transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className={cn("w-3 h-3", feedbackLoading && "animate-spin")} />
+                Refresh
+              </button>
+            </div>
+
+            {feedbackError && (
+              <div className="glass-panel p-6 rounded-2xl border-[var(--chrome-border)] text-center">
+                <p className="text-sm font-semibold text-[var(--foreground)] mb-1">Could not load feedback</p>
+                <p className="text-xs text-[var(--muted)]">{feedbackError}</p>
+              </div>
+            )}
+
+            {feedbackLoading && !feedbackItems.length ? (
+              <div className="glass-panel p-10 rounded-2xl border-[var(--chrome-border)] text-center text-sm text-[var(--muted)]">
+                Loading submissions…
+              </div>
+            ) : feedbackItems.length === 0 && !feedbackError ? (
+              <div className="glass-panel p-10 rounded-2xl border-[var(--chrome-border)] text-center">
+                <MessageSquare className="w-8 h-8 text-[var(--muted)] mx-auto mb-3 opacity-50" />
+                <p className="text-sm font-semibold text-[var(--foreground)] mb-1">No feedback yet</p>
+                <p className="text-xs text-[var(--muted)]">
+                  Submissions from the Feedback button will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {feedbackItems.map((item) => {
+                  const typeMeta =
+                    item.type === "bug"
+                      ? { icon: Bug, label: "Bug", classes: "bg-rose-500/10 border-rose-500/30 text-rose-400" }
+                      : item.type === "feature"
+                      ? { icon: Lightbulb, label: "Feature", classes: "bg-amber-500/10 border-amber-500/30 text-amber-400" }
+                      : item.type === "appreciation"
+                      ? { icon: Heart, label: "Appreciation", classes: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" }
+                      : { icon: MessageSquare, label: "General", classes: "bg-[var(--chrome-surface-soft)] border-[var(--chrome-border)] text-[var(--foreground)]" };
+                  const TypeIcon = typeMeta.icon;
+                  return (
+                    <div
+                      key={item.id}
+                      className="glass-panel p-4 sm:p-5 rounded-2xl border-[var(--chrome-border)] hover:border-[var(--foreground)]/20 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wider", typeMeta.classes)}>
+                            <TypeIcon className="w-3 h-3" />
+                            {typeMeta.label}
+                          </span>
+                          <span className="text-xs font-semibold text-[var(--foreground)]">
+                            {item.name || "Anonymous"}
+                            {item.email && (
+                              <span className="text-[var(--muted)] font-normal"> · {item.email}</span>
+                            )}
+                          </span>
+                          {item.is_mocked === 1 && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-[var(--muted)] uppercase tracking-wider font-bold">
+                              email failed
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-[var(--muted)] font-mono shrink-0">
+                          {new Date(item.created_at).toLocaleString()}
+                        </span>
+                      </div>
+
+                      <p className="text-sm text-[var(--foreground)] leading-relaxed whitespace-pre-wrap">
+                        {item.message}
+                      </p>
+
+                      <div className="mt-3 pt-2.5 border-t border-[var(--chrome-border)]/40 flex items-center gap-3 flex-wrap text-[10px] text-[var(--muted)] font-medium">
+                        {item.os && (
+                          <span className="inline-flex items-center gap-1">
+                            <Cpu className="w-3 h-3" /> {item.os}
+                          </span>
+                        )}
+                        {item.screen && (
+                          <span className="inline-flex items-center gap-1">
+                            <Monitor className="w-3 h-3" /> {item.screen}
+                          </span>
+                        )}
+                        {item.language && (
+                          <span className="inline-flex items-center gap-1">
+                            <Globe className="w-3 h-3" /> {item.language}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

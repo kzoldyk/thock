@@ -9,6 +9,41 @@ import type {
 export const STORAGE_KEY = "thock_user_history_v1"
 const MAX_STORED_TESTS = 500
 
+const RECENT_WORDS_KEY = "thock_recent_words_v1"
+const MAX_RECENT_WORDS = 100
+
+/**
+ * Words typed in previous sessions — feeds the cross-session repetition
+ * penalty in the adaptive engine.
+ */
+export function getRecentSessionWords(): string[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = window.localStorage.getItem(RECENT_WORDS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed)
+      ? parsed.filter((w): w is string => typeof w === "string" && w.length > 0).slice(-MAX_RECENT_WORDS)
+      : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Persists a finished session's target words for future repetition penalties.
+ */
+export function saveRecentSessionWords(words: string[]): void {
+  if (typeof window === "undefined" || !words.length) return
+  try {
+    window.localStorage.setItem(
+      RECENT_WORDS_KEY,
+      JSON.stringify(words.map((w) => w.toLowerCase()).slice(-MAX_RECENT_WORDS))
+    )
+  } catch {
+    // Non-critical — ignore storage failures
+  }
+}
+
 /**
  * Safely retrieve local test history from localStorage.
  */

@@ -18,8 +18,8 @@ export function intrinsicDifficulty(word: string): number {
   const clean = word.toLowerCase().replace(/[^a-z]/g, "")
   if (clean.length === 0) return 0.2
 
-  // 1. Length factor: 2-3 chars ~ 0.15-0.25, 4-6 chars ~ 0.35-0.5, 7-10 chars ~ 0.65-0.85
-  const lengthFactor = Math.min(1.0, Math.max(0.1, (clean.length - 1) / 10))
+  // 1. Length factor: 2-3 chars ~ 0.08-0.17, 4-6 chars ~ 0.25-0.42, 7-10 chars ~ 0.5-0.75
+  const lengthFactor = Math.min(1.0, Math.max(0.1, (clean.length - 1) / 12))
 
   // 2. Awkward/rare letter factor
   let awkwardLetterCount = 0
@@ -158,9 +158,10 @@ export function effectiveDifficulty(
 
 /**
  * Maps a difficulty value [0, 1] to a DifficultyBand.
+ * Easy threshold kept strict so "easy" slots genuinely feel easy.
  */
 export function classifyDifficultyBand(diff: number): DifficultyBand {
-  if (diff < 0.38) return "easy"
+  if (diff < 0.33) return "easy"
   if (diff < 0.68) return "medium"
   return "hard"
 }

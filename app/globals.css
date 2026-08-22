@@ -6,6 +6,19 @@
   --muted: #8e8e93;
   --accent: #1c1c1e;
   --accent-rgb: 28, 28, 30;
+
+  /* Semantic emotional colors (F5/DS2) — themes may override */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #f43f5e;
+  --info: #38bdf8;
+
+  /* Motion tokens (F5) — single easing family across the app */
+  --motion-fast: 120ms;
+  --motion-base: 240ms;
+  --motion-slow: 480ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
   --chrome-surface: rgba(255, 255, 255, 0.78);
   --chrome-surface-strong: rgba(255, 255, 255, 0.9);
   --chrome-surface-soft: rgba(255, 255, 255, 0.56);
@@ -122,7 +135,7 @@ body {
 
 /* Minimalist glowing state */
 .glass-glow {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all var(--motion-base) var(--ease-out-expo);
 }
 
 .glass-glow:hover {
@@ -150,8 +163,8 @@ body {
 
 /* Caret movement smoothing */
 .caret-transition {
-  transition: transform 0.08s cubic-bezier(0.16, 1, 0.3, 1), 
-              opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--motion-fast) var(--ease-out-expo),
+              opacity 150ms var(--ease-out-expo);
 }
 
 /* Perfect Word Sparkle Animation */
@@ -229,7 +242,7 @@ footer.flow-transition {
 
 /* Micro-animations */
 .button-lift {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--motion-base) var(--ease-out-expo), box-shadow var(--motion-base) var(--ease-out-expo);
 }
 
 .button-lift:hover {

@@ -21,6 +21,7 @@ import { generateAdaptiveSequence } from "./sequence-generator"
 import { scoreCandidateWord } from "./candidate-scoring"
 import { getLocalHistory } from "../user-stats"
 import { applyComplexity } from "../words"
+import { findEasterEgg } from "../easter-eggs"
 
 export interface AdaptiveWordOptions {
   profile?: UserTypingProfile | null
@@ -55,6 +56,7 @@ export function generatePersonalizedWords(
     userProfile: profile,
     testCount: options.testCount ?? profile?.testCount ?? history.length,
     complex: options.complex ?? false,
+    practiceSet: profile?.practiceSet || [],
   }
 
   const generated = generateAdaptiveSequence(count, context)
@@ -63,7 +65,14 @@ export function generatePersonalizedWords(
     return generated
   }
 
-  return applyComplexity(generated, context.seed ?? 42)
+  // Keep easter egg words pristine through complexity transforms so their
+  // triggers still match when typed.
+  const eggWords = new Set(
+    generated
+      .map((w) => findEasterEgg(w)?.word)
+      .filter((w): w is string => Boolean(w))
+  )
+  return applyComplexity(generated, context.seed ?? 42, eggWords)
 }
 
 /**

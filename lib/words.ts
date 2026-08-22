@@ -2,7 +2,8 @@ import {
   type UserGripProfile,
   getLetterMasteryStatus,
 } from "./letter-grip"
-import { generatePersonalizedWords } from "./adaptive"
+import { generatePersonalizedWords, extractWeaknessDistribution } from "./adaptive"
+import type { UserTypingProfile } from "./adaptive/types"
 
 export const commonWords = [
   "mist", "rim", "who", "shell", "stock", "proven", "kink", "hot", "circuit", "blade",
@@ -437,10 +438,14 @@ function pickUniqueWords(
   return result
 }
 
-export function applyComplexity(words: string[], seed: number): string[] {
+export function applyComplexity(words: string[], seed: number, protectedWords?: Iterable<string>): string[] {
   const rng = mulberry32(seed)
+  const protect = protectedWords ? new Set(Array.from(protectedWords, (w) => w.toLowerCase())) : null
 
   return words.map((word) => {
+    // Easter egg words must survive untouched so triggers still match
+    if (protect && protect.has(word.toLowerCase())) return word
+
     let newWord = word
     const r = rng()
 
@@ -501,11 +506,11 @@ export function generateAdaptiveWords(
   options: AdaptiveWordOptions = {}
 ): string[] {
   // Import dynamically or load from adaptive engine
-  let userProfile = options.profile
+  let userProfile: UserTypingProfile | undefined | null = options.profile
 
   if (!userProfile && options.gripProfile) {
     // If legacy gripProfile is supplied, wrap it in a UserTypingProfile
-    userProfile = {
+    const wrapped: UserTypingProfile = {
       letters: options.gripProfile.letters || {},
       words: {},
       ngrams: {},
@@ -513,6 +518,9 @@ export function generateAdaptiveWords(
       testCount: options.testCount || 0,
       lastUpdatedAt: Date.now(),
     }
+    // Derive weaknesses from letter telemetry so drilling actually works
+    wrapped.weaknesses = extractWeaknessDistribution(wrapped)
+    userProfile = wrapped
   }
 
   return generatePersonalizedWords(count, {

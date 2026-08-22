@@ -7,44 +7,6 @@ import { useAppStore } from "@/stores/useAppStore"
 import { cn } from "@/lib/utils"
 import { getFontClass } from "@/lib/fonts"
 
-interface StatItemProps {
-  label: string
-  value: number
-  suffix?: string
-  format?: (v: number) => string
-  hideOnMobile?: boolean
-}
-
-function StatItem({ label, value, suffix, format, hideOnMobile }: StatItemProps) {
-  const fontFamily = useAppStore((s) => s.fontFamily)
-  const fontClass = getFontClass(fontFamily)
-
-  return (
-    <div className={cn(
-      "glass-panel glass-glow flex flex-col items-center justify-center py-1.5 xs:py-2 sm:py-3 px-1.5 xs:px-2.5 sm:px-4 rounded-lg xs:rounded-xl min-w-0 flex-1 select-none",
-      "transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 cursor-default",
-      hideOnMobile && "hidden sm:flex"
-    )}>
-      <span className={cn(
-        "text-[8.5px] xs:text-[9.5px] sm:text-[11px] font-bold tracking-wider sm:tracking-widest text-[var(--muted)] uppercase mb-0.5 sm:mb-1.5 opacity-95",
-        fontClass
-      )}>
-        {label}
-      </span>
-      <div className="flex items-baseline gap-0.5">
-        <AnimatedNumber
-          value={value}
-          className="text-sm xs:text-base sm:text-2xl font-bold tabular-nums tracking-tight text-[var(--foreground)]"
-          format={format}
-        />
-        {suffix && (
-          <span className="text-[9px] xs:text-[10px] sm:text-xs font-semibold text-[var(--muted)]">{suffix}</span>
-        )}
-      </div>
-    </div>
-  )
-}
-
 interface Props {
   stats: TypingStats
   sessionState: SessionState
@@ -52,9 +14,16 @@ interface Props {
   totalWords?: number
 }
 
+/**
+ * F4 — One hero number. Live WPM is the single loud element; everything
+ * else is quiet sidecar text. Flat surface (no glass), glanceable.
+ */
 export const StatsBar = memo(function StatsBar({ stats, sessionState }: Props) {
   const mode = useAppStore((s) => s.typingMode)
   const timeLimit = useAppStore((s) => s.timeLimit)
+  const fontFamily = useAppStore((s) => s.fontFamily)
+  const fontClass = getFontClass(fontFamily)
+
   const formatTime = (ms: number) => {
     const sec = ms / 1000
     if (mode === "time") {
@@ -67,17 +36,71 @@ export const StatsBar = memo(function StatsBar({ stats, sessionState }: Props) {
   const displayWpm = sessionState === "finished" ? stats.wpm : stats.liveWpm
 
   return (
-    <div className="w-full max-w-[900px] mx-auto px-2 xs:px-4 sm:px-8 my-1 sm:my-3">
-      <div className="flex items-stretch justify-between gap-1 xs:gap-1.5 sm:gap-3">
-        <StatItem label="WPM" value={displayWpm} />
-        <StatItem label="Acc" value={stats.accuracy} suffix="%" />
-        <StatItem label="Raw" value={stats.raw} hideOnMobile />
-        <StatItem label="Cons" value={stats.consistency} suffix="%" hideOnMobile />
-        <StatItem label="Time" value={stats.elapsedMs} format={formatTime} />
-        <StatItem label="Mistakes" value={stats.mistakes} />
-        <StatItem label="Streak" value={stats.streak} hideOnMobile />
+    <div className="w-full max-w-[900px] mx-auto px-4 sm:px-8 my-2 sm:my-3 select-none">
+      <div
+        className={cn(
+          "flex items-center justify-between gap-6 rounded-2xl border px-5 py-3",
+          "border-[var(--chrome-border)] bg-transparent"
+        )}
+      >
+        {/* Hero: live WPM */}
+        <div className="flex items-baseline gap-2.5 min-w-0">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
+            wpm
+          </span>
+          <AnimatedNumber
+            value={displayWpm}
+            className="text-5xl sm:text-6xl leading-none font-bold tabular-nums tracking-tight text-[var(--foreground)]"
+          />
+        </div>
+
+        {/* Quiet sidecars */}
+        <div className={cn("flex items-center gap-5 sm:gap-7", fontClass)}>
+          <div className="flex flex-col items-end">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              Acc
+            </span>
+            <span className="text-base sm:text-lg font-bold tabular-nums text-[var(--foreground)]">
+              <AnimatedNumber value={stats.accuracy} />%
+            </span>
+          </div>
+
+          <div className="hidden xs:flex flex-col items-end">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              Time
+            </span>
+            <span className="text-base sm:text-lg font-bold tabular-nums text-[var(--foreground)]">
+              {formatTime(stats.elapsedMs)}
+            </span>
+          </div>
+
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              Raw
+            </span>
+            <span className="text-base sm:text-lg font-bold tabular-nums text-[var(--foreground)] opacity-80">
+              <AnimatedNumber value={stats.raw} />
+            </span>
+          </div>
+
+          {/* Micro indicators: mistakes + streak */}
+          <div className="hidden lg:flex flex-col items-end gap-0.5">
+            <span
+              className={cn(
+                "text-[11px] font-semibold tabular-nums",
+                stats.mistakes > 0 ? "text-[var(--danger)]" : "text-[var(--muted)]"
+              )}
+            >
+              {stats.mistakes} mistake{stats.mistakes === 1 ? "" : "s"}
+            </span>
+            {stats.streak > 0 && (
+              <span className="text-[11px] font-semibold tabular-nums text-[var(--success)]">
+                streak {stats.streak}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
 })
-

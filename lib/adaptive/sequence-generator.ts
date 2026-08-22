@@ -6,6 +6,7 @@ import type {
 } from "./types"
 import { scoreCandidateWord } from "./candidate-scoring"
 import { commonWords } from "../words"
+import { pickEasterEggInjection } from "../easter-eggs"
 
 // Deterministic 32-bit PRNG
 function mulberry32(a: number) {
@@ -24,11 +25,11 @@ interface BandDistribution {
 }
 
 const STATE_DISTRIBUTIONS: Record<UserStateCategory, BandDistribution> = {
-  calibrating: { easy: 0.92, medium: 0.07, hard: 0.01 },
-  struggling: { easy: 0.88, medium: 0.1, hard: 0.02 },
-  stable: { easy: 0.72, medium: 0.2, hard: 0.08 },
-  flow: { easy: 0.58, medium: 0.27, hard: 0.15 },
-  mastering: { easy: 0.45, medium: 0.35, hard: 0.2 },
+  calibrating: { easy: 0.96, medium: 0.04, hard: 0 },
+  struggling: { easy: 0.92, medium: 0.08, hard: 0 },
+  stable: { easy: 0.84, medium: 0.13, hard: 0.03 },
+  flow: { easy: 0.72, medium: 0.21, hard: 0.07 },
+  mastering: { easy: 0.62, medium: 0.27, hard: 0.11 },
 }
 
 /** Words that feel fast to type — short, common, home-row friendly */
@@ -59,8 +60,43 @@ const FLOW_WORDS = new Set([
   "walk", "wait", "stop", "start", "flow", "type", "word", "test", "game",
   "team", "home", "food", "book", "room", "door", "wall", "tree", "rain",
   "snow", "wind", "fire", "gold", "blue", "pink", "gray", "dark", "light",
-  "clean", "quick", "happy", "great", "small", "large", "short", "sweet",
-  "fresh", "clear", "smart", "lucky", "early", "later", "today", "night",
+   "clean", "quick", "happy", "great", "small", "large", "short", "sweet",
+   "fresh", "clear", "smart", "lucky", "early", "later", "today", "night",
+   // Extended feel-fast set: more short common words for early familiarity
+   "mist", "rim", "jaw", "week", "cry", "pod", "twin", "boot", "blink",
+   "toast", "born", "pixel", "pack", "five", "chill", "score", "junk",
+   "seat", "want", "sum", "nod", "had", "max", "four", "jog", "copy",
+   "lot", "east", "chest", "both", "bonus", "echo", "suit", "soft",
+   "mile", "lip", "sharp", "see", "vital", "fur", "plane", "item",
+   "poem", "write", "good", "owl", "coin", "then", "topic", "width",
+   "below", "use", "mouth", "self", "duck", "kiss", "front", "peek",
+   "sun", "mouse", "habit", "reply", "chart", "man", "same", "length",
+   "safe", "round", "bay", "room", "ring", "just", "tag", "lap", "nap",
+   "cool", "bone", "floor", "park", "stem", "catch", "gray", "know",
+   "food", "fork", "roof", "palm", "road", "order", "elbow", "did",
+   "load", "cross", "weak", "check", "truth", "cake", "power", "age",
+   "green", "tidy", "skin", "feet", "dove", "pop", "spy", "my", "sky",
+   "dirt", "cup", "click", "human", "cream", "might", "spring", "bold",
+   "point", "year", "top", "exit", "able", "log", "sip", "look", "sack",
+   "blind", "tab", "animal", "tide", "swim", "alone", "kid", "ask",
+   "base", "line", "fact", "black", "sleep", "sly", "buy", "odd",
+   "fair", "rage", "buzz", "hope", "cab", "note", "son", "cloud",
+   "scar", "egg", "miss", "ego", "wide", "way", "wave", "cable", "pick",
+   "ice", "gum", "curl", "rub", "quick", "angle", "told", "jar", "tent",
+   "lamp", "noun", "guest", "bean", "brave", "rag", "can", "mom", "add",
+   "text", "scene", "snake", "bulk", "tin", "arm", "mask", "ball",
+   "jury", "moon", "chain", "guide", "very", "curve", "row", "aim",
+   "camp", "wit", "hold", "zone", "beach", "job", "alarm", "train",
+   "task", "slight", "inner", "volt", "land", "blow", "phrase", "real",
+   "tool", "accent", "shore", "access", "little", "spray", "gap",
+   "gain", "letter", "wall", "also", "grain", "too", "chop", "gold",
+   "wish", "body", "day", "since", "ski", "chief", "track", "issue",
+   "deep", "tea", "right", "but", "grass", "joy", "help", "guess",
+   "fist", "term", "two", "fox", "boss", "oil", "mark", "kit", "mother",
+   "board", "thumb", "first", "milk", "rest", "mix", "press", "raid",
+   "tip", "mean", "menu", "ram", "it", "voice", "icon", "piece",
+   "magic", "lean", "wrist", "smile", "trade", "lemon", "index", "seek",
+   "leg", "thick", "agree", "tank", "clue", "when", "read", "pan",
 ])
 
 /**
@@ -87,10 +123,19 @@ export function buildSequencePattern(
   const hardInterval = hardCount > 0 ? Math.max(3, Math.floor(count / hardCount)) : count + 1
   const medInterval = mediumCount > 0 ? Math.max(2, Math.floor(count / (mediumCount + 1))) : count + 1
 
+  // Sandwich curve: easy warm-up ramp for every state, forced easy cool-down
+  // in the final stretch. Sessions start and end on a win (peak-end rule).
+  const warmupCount =
+    state === "calibrating"
+      ? Math.min(12, count)
+      : state === "struggling"
+      ? Math.min(8, count)
+      : Math.min(6, count)
+  const cooldownCount = Math.max(1, Math.floor(count * 0.1))
+  const cooldownStart = Math.max(warmupCount, count - cooldownCount)
+
   for (let i = 0; i < count; i++) {
-    // Warm-up ramp: first words are always easy for new/calibrating users
-    const warmupCount = state === "calibrating" ? Math.min(12, count) : state === "struggling" ? Math.min(8, count) : 0
-    if (i < warmupCount) {
+    if (i < warmupCount || i >= cooldownStart) {
       pattern.push("easy")
       placedEasy++
       continue
@@ -149,16 +194,18 @@ export function generateAdaptiveSequence(
     hard: [],
   }
 
-  const isNewUser = (context.testCount ?? 0) < 8
+  const isNewUser = (context.testCount ?? 0) < 15
   const candidateWords = isNewUser
     ? commonWords.filter((w) => FLOW_WORDS.has(w.toLowerCase()))
     : commonWords
 
   for (const word of candidateWords.length > 0 ? candidateWords : commonWords) {
-    const defaultScore = scoreCandidateWord(word, context, [])
-    const band = defaultScore.band
-    const slotScore = scoreCandidateWord(word, context, [], band)
-    scoredPool[band].push(slotScore)
+    // Two passes are intentional: pass 1 detects the band, pass 2 re-weights
+    // scoring FOR that band so weakness-drilling concentrates in medium/hard
+    // pools instead of flooding easy slots.
+    const bandScore = scoreCandidateWord(word, context, [])
+    const slotScore = scoreCandidateWord(word, context, [], bandScore.band)
+    scoredPool[bandScore.band].push(slotScore)
   }
 
   // Sort each pool by finalScore descending
@@ -166,12 +213,37 @@ export function generateAdaptiveSequence(
     scoredPool[band].sort((a, b) => b.finalScore - a.finalScore)
   }
 
+  // Practice vocabulary: score set members once so they can slot into
+  // matching band positions at a high draw rate (muscle-memory loop).
+  const PRACTICE_DRAW_RATE = 0.6
+  const practiceByBand: Record<DifficultyBand, string[]> = { easy: [], medium: [], hard: [] }
+  for (const word of context.practiceSet || []) {
+    if (!word) continue
+    practiceByBand[scoreCandidateWord(word, context, []).band].push(word)
+  }
+  const recentPractice: string[] = []
+
   // 3. Construct sequence with dynamic repetition avoidance and softmax-like top-k sampling
   const sequence: string[] = []
   const usedCounts: Record<string, number> = {}
 
   for (let i = 0; i < count; i++) {
     const targetBand = bandPattern[i] || "easy"
+
+    // Practice draw: ~60% of slots come from the muscle-memory vocabulary,
+    // matched to the slot's difficulty band, avoiding the last 4 picks.
+    const practiceCandidates = (practiceByBand[targetBand] || []).filter(
+      (w) => !recentPractice.includes(w)
+    )
+    if (practiceCandidates.length > 0 && rng() < PRACTICE_DRAW_RATE) {
+      const pick = practiceCandidates[Math.floor(rng() * practiceCandidates.length)]
+      sequence.push(pick)
+      usedCounts[pick] = (usedCounts[pick] || 0) + 1
+      recentPractice.push(pick)
+      if (recentPractice.length > 4) recentPractice.shift()
+      continue
+    }
+
     let pool = scoredPool[targetBand]
 
     // Fallback if pool is too small
@@ -224,6 +296,20 @@ export function generateAdaptiveSequence(
 
     sequence.push(choice)
     usedCounts[choice] = (usedCounts[choice] || 0) + 1
+  }
+
+  // 4. Easter egg seeding: occasionally hide one undiscovered secret word
+  // mid-sequence so users stumble onto effects naturally while practicing.
+  // Never touches warm-up slots or the final word; skipped entirely for
+  // calibrating users to keep their first sessions clean.
+  if (stateCategory !== "calibrating" && count >= 12 && rng() < 0.4) {
+    const slotStart = Math.max(2, Math.floor(count * 0.25))
+    const slotEnd = Math.max(slotStart, Math.floor(count * 0.75))
+    const slotIdx = slotStart + Math.floor(rng() * (slotEnd - slotStart))
+    const eggWord = pickEasterEggInjection(rng, sequence)
+    if (eggWord && !sequence.includes(eggWord)) {
+      sequence[slotIdx] = eggWord
+    }
   }
 
   return sequence

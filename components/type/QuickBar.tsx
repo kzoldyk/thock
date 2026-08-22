@@ -1,6 +1,7 @@
 "use client"
 
 import { memo } from "react"
+import { Timer, Type, Quote, Code2 } from "lucide-react"
 import { useAppStore } from "@/stores/useAppStore"
 import { cn } from "@/lib/utils"
 
@@ -32,11 +33,11 @@ export const QuickBar = memo(function QuickBar() {
     }, 3500)
   }
 
-  const modes: { id: "time" | "words" | "quotes" | "code"; label: string; icon: string }[] = [
-    { id: "time", label: "time", icon: "⏱️" },
-    { id: "words", label: "words", icon: "📝" },
-    { id: "quotes", label: "quotes", icon: "💬" },
-    { id: "code", label: "code", icon: "💻" },
+  const modes: { id: "time" | "words" | "quotes" | "code"; label: string; icon: typeof Timer }[] = [
+    { id: "time", label: "time", icon: Timer },
+    { id: "words", label: "words", icon: Type },
+    { id: "quotes", label: "quotes", icon: Quote },
+    { id: "code", label: "code", icon: Code2 },
   ]
 
   const times = [15, 30, 60, 120]
@@ -46,21 +47,24 @@ export const QuickBar = memo(function QuickBar() {
       <div className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl glass-panel bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] shadow-sm text-[11px] sm:text-xs font-semibold select-none backdrop-blur-md whitespace-nowrap min-w-max mx-auto">
         {/* Mode Selectors */}
         <div className="flex items-center gap-0.5 sm:gap-1">
-          {modes.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setTypingMode(m.id)}
-              className={cn(
-                "px-2 xs:px-2.5 sm:px-3 py-1 rounded-lg sm:rounded-xl transition-all duration-200 cursor-pointer flex items-center gap-1 sm:gap-1.5",
-                typingMode === m.id
-                  ? "bg-[var(--accent)] text-white shadow-sm font-bold scale-[1.02]"
-                  : "text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--chrome-surface)]"
-              )}
-            >
-              <span className="text-xs">{m.icon}</span>
-              <span className="capitalize">{m.label}</span>
-            </button>
-          ))}
+          {modes.map((m) => {
+            const Icon = m.icon
+            return (
+              <button
+                key={m.id}
+                onClick={() => setTypingMode(m.id)}
+                className={cn(
+                  "px-2 xs:px-2.5 sm:px-3 py-1 rounded-lg sm:rounded-xl transition-all duration-200 cursor-pointer flex items-center gap-1 sm:gap-1.5",
+                  typingMode === m.id
+                    ? "bg-[var(--accent)] text-white shadow-sm font-bold scale-[1.02]"
+                    : "text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--chrome-surface)]"
+                )}
+              >
+                <Icon className="w-3 h-3" />
+                <span className="capitalize">{m.label}</span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Divider */}

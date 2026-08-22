@@ -2,31 +2,41 @@
 
 import { useState, useEffect, useRef, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { 
-  Trophy, 
-  RotateCcw, 
-  Zap, 
-  Target, 
-  Activity, 
-  Clock, 
-  Flame, 
-  AlertCircle, 
-  Sparkles, 
+import {
+  Trophy,
+  RotateCcw,
+  Zap,
+  Target,
+  Activity,
+  Clock,
+  Flame,
+  AlertCircle,
+  Sparkles,
   ChevronRight,
   BarChart2,
   BarChart3,
   TrendingUp,
   Sliders,
-  ChevronDown
+  ChevronDown,
+  Share2,
+  Gauge
 } from "lucide-react"
 import type { TypingStats, Keystroke } from "@/types"
 import type { StatsSample } from "@/engines/metrics/history"
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber"
+import { ConfettiBurst } from "@/components/ui/Confetti"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/stores/useAppStore"
-import { saveLocalTestResult } from "@/lib/user-stats"
+import { saveLocalTestResult, getLocalHistory, saveRecentSessionWords } from "@/lib/user-stats"
 import { saveLocalLetterGrip } from "@/lib/letter-grip"
-import { recordSessionTelemetry } from "@/lib/adaptive"
+import { recordSessionTelemetry, getLocalAdaptiveProfile, extractWordAttempts } from "@/lib/adaptive"
+import {
+  getSecretsProgress,
+  pickUndiscoveredHint,
+  type SecretsProgress,
+} from "@/lib/easter-eggs"
+import { buildScoreShareCard, shareOrDownload } from "@/lib/share-card"
+import { appThemes } from "@/lib/themes"
 
 interface Props {
   stats: TypingStats
@@ -52,6 +62,28 @@ function getRankTitle(wpm: number) {
   return "Sentient AI 🤖"
 }
 
+/** F2 — staged entrance for result card sections */
+function Reveal({
+  delay,
+  children,
+  className,
+}: {
+  delay: number
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
 export function ResultCard({
   stats,
   onRestart,
@@ -65,10 +97,41 @@ export function ResultCard({
   targetText,
 }: Props) {
   const isPerfect = stats.accuracy === 100 && stats.totalTyped > 0
-  const isPb = stats.wpm > 100
+  // Real PB detection replaces the old `wpm > 100` heuristic
+  const [isNewPb, setIsNewPb] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   const typingMode = useAppStore((s) => s.typingMode)
   const timeLimit = useAppStore((s) => s.timeLimit)
+  const appThemeId = useAppStore((s) => s.appThemeId)
+  const [shareState, setShareState] = useState<"idle" | "busy" | "done">("idle")
+
+  const handleShare = async () => {
+    if (shareState === "busy") return
+    setShareState("busy")
+    try {
+      const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
+      const blob = await buildScoreShareCard({
+        wpm: stats.wpm,
+        accuracy: stats.accuracy,
+        consistency: stats.consistency,
+        modeLabel:
+          typingMode === "time" ? `${timeLimit || 30}s time` : String(typingMode || "time"),
+        rankTitle: getRankTitle(stats.wpm),
+        theme: {
+          background: theme.background,
+          foreground: theme.foreground,
+          muted: theme.muted,
+          accent: theme.accent,
+        },
+      })
+      if (blob) await shareOrDownload(blob)
+      setShareState("done")
+      setTimeout(() => setShareState("idle"), 2200)
+    } catch {
+      setShareState("idle")
+    }
+  }
 
   const hasSubmitted = useRef(false)
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -78,10 +141,20 @@ export function ResultCard({
   const [activeSeries, setActiveSeries] = useState<"both" | "net" | "raw">("both")
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false)
 
+  // Progress visibility: delta vs recent form + cumulative mastered words +
+  // easter egg secrets. All deferred so telemetry settles before reading.
+  const [wpmDelta, setWpmDelta] = useState<number | null>(null)
+  const [masteredCount, setMasteredCount] = useState<number | null>(null)
+  const [secrets, setSecrets] = useState<SecretsProgress>(() => getSecretsProgress())
+  const [secretHint, setSecretHint] = useState<string | null>(null)
+
   // Save score locally and submit online
   useEffect(() => {
     if (hasSubmitted.current) return
     hasSubmitted.current = true
+
+    // Capture previous history BEFORE this test is appended for the delta
+    const prevHistory = getLocalHistory()
 
     // 1. Save score locally for instant offline-first stats
     saveLocalTestResult({
@@ -102,6 +175,7 @@ export function ResultCard({
     if (keystrokes && keystrokes.length > 0) {
       saveLocalLetterGrip(keystrokes)
       recordSessionTelemetry(keystrokes, words || [], targetText || [])
+      saveRecentSessionWords(targetText || [])
 
       if (currentUser) {
         // Aggregate per-character deltas for this session
@@ -171,6 +245,40 @@ export function ResultCard({
         console.error("[leaderboard] Silent score submission error:", err?.message || err)
       })
     }
+
+    // 4. Deferred UI state: telemetry has settled by now
+    const t = setTimeout(() => {
+      if (prevHistory.length > 0) {
+        const recent = [...prevHistory]
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, 5)
+        const avgRecent = recent.reduce((sum, r) => sum + r.wpm, 0) / recent.length
+        setWpmDelta(Math.round(stats.wpm - avgRecent))
+
+        // Verified PB: beats the best of prior runs in the same mode/config
+        const sameConfig = prevHistory.filter(
+          (r) =>
+            r.mode === (typingMode || "time") &&
+            ((typingMode || "time") !== "time" || !r.timeLimit || r.timeLimit === (timeLimit || 30))
+        )
+        if (sameConfig.length > 0 && stats.totalTyped > 0 && stats.accuracy >= 90) {
+          const prevBest = Math.max(...sameConfig.map((r) => r.wpm))
+          if (stats.wpm > prevBest) {
+            setIsNewPb(true)
+            setShowConfetti(true)
+          }
+        }
+      }
+      setMasteredCount(getLocalAdaptiveProfile().practiceStats?.mastered || 0)
+      setSecrets(getSecretsProgress())
+      setSecretHint(pickUndiscoveredHint())
+    }, 50)
+
+    const confettiT = showConfetti ? setTimeout(() => setShowConfetti(false), 3200) : null
+    return () => {
+      clearTimeout(t)
+      if (confettiT) clearTimeout(confettiT)
+    }
   }, [currentUser, stats, timeLimit, typingMode, keystrokes])
 
   // In-depth diagnostics computations
@@ -183,6 +291,19 @@ export function ResultCard({
   const errorPenalty = useMemo(() => {
     return Math.max(0, Math.round(stats.raw - stats.wpm))
   }, [stats.raw, stats.wpm])
+
+  // Session highlights: fastest perfectly-typed words this run
+  const fastestWords = useMemo(() => {
+    if (!keystrokes?.length || !targetText?.length) return []
+    try {
+      return extractWordAttempts(words || [], targetText, keystrokes)
+        .filter((a) => a.word.length >= 3 && a.errors === 0 && a.accuracy === 100)
+        .sort((a, b) => b.wpm - a.wpm)
+        .slice(0, 3)
+    } catch {
+      return []
+    }
+  }, [keystrokes, targetText, words])
 
   // Chart computation & point mapping
   const chartData = useMemo(() => {
@@ -254,23 +375,25 @@ export function ResultCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+      initial={{ opacity: 0, y: 24, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 28 }}
       className="w-full max-w-[740px] mx-auto px-2 sm:px-4 my-2"
     >
+      {showConfetti && <ConfettiBurst />}
       {/* Main Compact Result Card Container */}
       <div className="rounded-2xl border border-[var(--chrome-border)] bg-[var(--chrome-surface-strong)] p-5 sm:p-6 shadow-xl relative overflow-hidden">
-        
+
         {/* Top Bar: Mode & Badges */}
+        <Reveal delay={0.05}>
         <div className="flex items-center justify-between gap-3 mb-5 border-b border-[var(--chrome-border)] pb-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-[var(--foreground)] inline-flex items-center gap-1.5">
               {getRankTitle(stats.wpm)}
             </span>
-            {isPb && (
+            {isNewPb && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 inline-flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> New PB
+                <Sparkles className="w-3 h-3" /> New Personal Best
               </span>
             )}
             {isPerfect && (
@@ -284,8 +407,10 @@ export function ResultCard({
             {typingMode === "time" ? `${timeLimit || 30}s` : typingMode}
           </span>
         </div>
+        </Reveal>
 
         {/* Hero WPM + Compact Stats Section */}
+        <Reveal delay={0.22}>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-5 items-center">
           {/* Main Score Box */}
           <div className="md:col-span-5 flex flex-col items-center justify-center p-4 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-center">
@@ -296,6 +421,29 @@ export function ResultCard({
               <AnimatedNumber value={stats.wpm} />
             </div>
             <div className="text-[11px] font-medium text-[var(--muted)]">Net Typing Speed</div>
+
+            {wpmDelta !== null && (
+              <div
+                className={cn(
+                  "mt-2 px-2 py-0.5 rounded-md border text-[10px] font-semibold tabular-nums",
+                  wpmDelta >= 0
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    : "bg-[var(--chrome-surface-strong)] border-[var(--chrome-border)] text-[var(--muted)]"
+                )}
+                title="Compared to the average of your last 5 tests"
+              >
+                {wpmDelta >= 0 ? "+" : ""}
+                {wpmDelta} vs last 5 tests
+              </div>
+            )}
+            {masteredCount !== null && masteredCount > 0 && (
+              <div
+                className="mt-1.5 text-[10px] font-medium text-[var(--muted)] tabular-nums"
+                title="Words rotated out of your practice set after mastering them"
+              >
+                {masteredCount} word{masteredCount === 1 ? "" : "s"} mastered
+              </div>
+            )}
           </div>
 
           {/* Compact 6-item Grid */}
@@ -356,7 +504,10 @@ export function ResultCard({
           </div>
         </div>
 
+        </Reveal>
+
         {/* Compact Interactive Performance Pace Graph */}
+        <Reveal delay={0.5}>
         <div className="mb-5 p-3.5 sm:p-4 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] relative">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="text-xs font-semibold text-[var(--foreground)] flex items-center gap-1.5">
@@ -514,8 +665,28 @@ export function ResultCard({
             )}
           </div>
         </div>
+        </Reveal>
+
+        {/* Session highlights: fastest clean words */}
+        {fastestWords.length > 0 && (
+          <Reveal delay={0.68}>
+            <div className="mb-5 flex items-center gap-2 flex-wrap text-[11px] px-1">
+              <Gauge className="w-3 h-3 text-[var(--muted)] shrink-0" />
+              <span className="text-[var(--muted)] font-medium">fastest clean words:</span>
+              {fastestWords.map((fw, i) => (
+                <span
+                  key={`${fw.word}-${fw.startedAt}-${i}`}
+                  className="px-2 py-0.5 rounded-md border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] font-semibold text-[var(--foreground)] tabular-nums"
+                >
+                  {fw.word} <span className="text-[var(--accent)]">{fw.wpm}</span>
+                </span>
+              ))}
+            </div>
+          </Reveal>
+        )}
 
         {/* Expandable Deep Diagnostics Drawer */}
+        <Reveal delay={0.78}>
         <div className="mb-5 rounded-xl border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] overflow-hidden transition-all">
           <button
             onClick={() => setShowDiagnostics(!showDiagnostics)}
@@ -581,8 +752,10 @@ export function ResultCard({
             )}
           </AnimatePresence>
         </div>
+        </Reveal>
 
         {/* Clean Flat Leaderboard Banner Callout */}
+        <Reveal delay={0.85}>
         <div
           onClick={currentUser ? onViewLeaderboard : onOpenAuth}
           className="cursor-pointer w-full p-3 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] hover:border-[var(--foreground)]/30 transition-colors flex items-center justify-between gap-3 mb-5"
@@ -597,10 +770,36 @@ export function ResultCard({
           </div>
           <ChevronRight className="w-4 h-4 text-[var(--muted)] shrink-0" />
         </div>
+        </Reveal>
+
+        {/* Hidden Secrets Progress + Cryptic Teaser */}
+        {secretHint && (
+          <Reveal delay={0.88}>
+            <div className="mb-5 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-[var(--chrome-border)] bg-transparent text-[11px] select-none">
+              <Sparkles className="w-3 h-3 text-[var(--muted)] shrink-0" />
+              <span className="font-semibold text-[var(--foreground)] tabular-nums">
+                {secrets.found}/{secrets.total} secrets
+              </span>
+              <span className="text-[var(--muted)] font-medium truncate">
+                · next one hides near “{secretHint}”
+              </span>
+            </div>
+          </Reveal>
+        )}
 
         {/* Solid Action Buttons (No AI Slop Gradients) */}
+        <Reveal delay={0.92}>
         <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[var(--chrome-border)] pt-4">
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleShare}
+              disabled={shareState === "busy"}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-[var(--foreground)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] transition-colors cursor-pointer disabled:opacity-60"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              {shareState === "busy" ? "Rendering…" : shareState === "done" ? "Saved ✓" : "Share Score"}
+            </button>
+
             <button
               onClick={onViewLeaderboard}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-[var(--foreground)] bg-[var(--chrome-surface-soft)] hover:bg-[var(--chrome-surface-strong)] border border-[var(--chrome-border)] transition-colors cursor-pointer"
@@ -628,6 +827,7 @@ export function ResultCard({
             <span>Start Next Session</span>
           </button>
         </div>
+        </Reveal>
       </div>
     </motion.div>
   )

@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { TypingStats, WordData, SessionState, Keystroke, LayoutId } from "@/types"
 import { generateAdaptiveWords } from "@/lib/words"
 import { getLocalAdaptiveProfile } from "@/lib/adaptive"
-import { getLocalHistory } from "@/lib/user-stats"
+import { getLocalHistory, getRecentSessionWords } from "@/lib/user-stats"
 import {
   createWords,
   processKey,
@@ -17,6 +17,7 @@ import { audioEngine } from "@/engines/audioEngine"
 import { hapticEngine } from "@/engines/hapticEngine"
 import { getLayout } from "@/lib/keyboard-layouts"
 import { useAppStore } from "@/stores/useAppStore"
+import { recordEggDiscovery } from "@/lib/easter-eggs"
 
 interface TypingSessionState {
   targetText: string[]
@@ -101,11 +102,12 @@ function getTargetTextForMode(
   const profile = getLocalAdaptiveProfile()
   const history = getLocalHistory()
   const testCount = history.length
+  const recentWords = getRecentSessionWords()
 
   if (mode === "time") {
-    return generateAdaptiveWords(150, { profile, testCount, seed, complex: complexWords })
+    return generateAdaptiveWords(150, { profile, testCount, seed, complex: complexWords, recentWords })
   } else if (mode === "words") {
-    return generateAdaptiveWords(25, { profile, testCount, seed, complex: complexWords })
+    return generateAdaptiveWords(25, { profile, testCount, seed, complex: complexWords, recentWords })
   } else if (mode === "code") {
     return getCodeSnippetForSeed(seed)
   } else {
@@ -442,7 +444,14 @@ export function useTypingSession(
             if (effectMap[completedWord]) {
               const effect = effectMap[completedWord];
               useAppStore.getState().setActiveEffect(effect);
-              
+
+              // Record discovery — celebrate the first time only
+              const isFirstDiscovery = recordEggDiscovery(completedWord)
+              if (isFirstDiscovery) {
+                useAppStore.getState().setDelightMessage(`Secret unlocked: ${completedWord} ✦`)
+                setTimeout(() => useAppStore.getState().setDelightMessage(null), 3000)
+              }
+
               if (completedWord === "THOCK") {
                 audioEngine.playThockSpecial()
               } else if (completedWord === "RAIN") {
@@ -454,7 +463,7 @@ export function useTypingSession(
                 useAppStore.getState().setAppThemeId("pure-white")
                 useAppStore.getState().setKeyboardThemeId("nothing")
               }
-              
+
               setTimeout(() => useAppStore.getState().setActiveEffect(null), 3000);
             }
           }

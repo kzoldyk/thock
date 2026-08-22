@@ -121,6 +121,11 @@ export interface AppTheme {
   accent: string
   accentRgb: string
   fontClass: string
+  /** Semantic emotional colors — optional; fall back to :root defaults */
+  success?: string
+  warning?: string
+  danger?: string
+  info?: string
 }
 
 export type LayoutId = '60' | '75'

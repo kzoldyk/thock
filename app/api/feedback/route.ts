@@ -1,5 +1,21 @@
 import { NextResponse } from "next/server"
 import nodemailer from "nodemailer"
+import { db } from "@/lib/db"
+
+interface FeedbackRow {
+  id: string
+  type: string
+  name: string | null
+  email: string | null
+  message: string
+  user_agent: string | null
+  language: string | null
+  screen: string | null
+  os: string | null
+  is_mocked: number
+  status: string
+  created_at: number
+}
 
 export async function POST(request: Request) {
   try {
@@ -42,6 +58,32 @@ export async function POST(request: Request) {
       detectedOS = "Windows"
     } else if (/linux/i.test(userAgent)) {
       detectedOS = "Linux"
+    }
+
+    // 1. Persist to D1 first — email delivery is best-effort on top.
+    let stored = false
+    try {
+      await db.execute(
+        `INSERT INTO feedback (id, type, name, email, message, user_agent, language, screen, os, is_mocked, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          `fb_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          String(type),
+          name ? String(name) : null,
+          email ? String(email) : null,
+          String(message),
+          userAgent === "Unknown" ? null : String(userAgent).slice(0, 512),
+          language === "Unknown" ? null : String(language).slice(0, 64),
+          screen === "Unknown" ? null : String(screen).slice(0, 64),
+          detectedOS,
+          0,
+          "new",
+          Date.now(),
+        ]
+      )
+      stored = true
+    } catch (dbErr) {
+      console.error("[api/feedback] Failed to store feedback in D1:", dbErr)
     }
 
     const htmlContent = `
@@ -110,39 +152,75 @@ export async function POST(request: Request) {
       console.log(message)
       console.log("========================================================\n")
 
+      if (stored) {
+        try {
+          await db.execute(`UPDATE feedback SET is_mocked = 1 WHERE created_at = (SELECT MAX(created_at) FROM feedback)`)
+        } catch {}
+      }
+
       return NextResponse.json({
         success: true,
+        stored,
         mocked: true,
-        message: "Feedback logged to console (SMTP environment variables not configured).",
+        message: stored
+          ? "Feedback saved and logged to console (SMTP not configured)."
+          : "Feedback logged to console (SMTP environment variables not configured).",
       })
     }
 
-    // Configure Nodemailer Transporter
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: parseInt(smtpPort),
-      secure: smtpPort === "465",
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    })
+    // Configure Nodemailer Transporter — failure here must NOT lose the stored row
+    let emailed = false
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(smtpPort),
+        secure: smtpPort === "465",
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      })
 
-    // Send Mail
-    await transporter.sendMail({
-      from: smtpFrom,
-      to: "hitesh.prajapati.in@gmail.com",
-      subject: mailSubject,
-      html: htmlContent,
-      text: `thock. Feedback\n\nCategory: ${subjectType}\nName: ${name || "N/A"}\nEmail: ${email || "N/A"}\nDevice / OS: ${detectedOS}\nScreen: ${screen}\nLanguage: ${language}\nUser Agent: ${userAgent}\n\nMessage:\n${message}`,
-    })
+      await transporter.sendMail({
+        from: smtpFrom,
+        to: "hitesh.prajapati.in@gmail.com",
+        subject: mailSubject,
+        html: htmlContent,
+        text: `thock. Feedback\n\nCategory: ${subjectType}\nName: ${name || "N/A"}\nEmail: ${email || "N/A"}\nDevice / OS: ${detectedOS}\nScreen: ${screen}\nLanguage: ${language}\nUser Agent: ${userAgent}\n\nMessage:\n${message}`,
+      })
+      emailed = true
+    } catch (mailErr) {
+      console.error("[api/feedback] Email dispatch failed (feedback already stored):", mailErr)
+    }
 
-    return NextResponse.json({ success: true, mocked: false })
+    return NextResponse.json({ success: true, stored, mocked: !emailed })
   } catch (error) {
     const err = error as Error
     console.error("[api/feedback] Error sending feedback:", err)
     return NextResponse.json(
       { error: err.message || "Failed to send feedback. Please try again later." },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * GET /api/feedback — recent submissions for the /analytics dashboard.
+ */
+export async function GET() {
+  try {
+    const rows = await db.query<FeedbackRow>(
+      `SELECT id, type, name, email, message, user_agent, language, screen, os, is_mocked, status, created_at
+       FROM feedback
+       ORDER BY created_at DESC
+       LIMIT 200`
+    )
+    return NextResponse.json({ success: true, feedback: rows })
+  } catch (error) {
+    const err = error as Error
+    console.error("[api/feedback] Failed to list feedback:", err)
+    return NextResponse.json(
+      { success: false, error: err.message || "Failed to load feedback.", feedback: [] },
       { status: 500 }
     )
   }

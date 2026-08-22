@@ -11,6 +11,7 @@ import {
 } from "./ngram-profile"
 import { extractWeaknessDistribution, createEmptyUserProfile } from "./user-profile"
 import { getLocalLetterGrip, saveLocalLetterGrip } from "../letter-grip"
+import { updatePracticeSetOnSession } from "./practice-set"
 
 export const ADAPTIVE_PROFILE_STORAGE_KEY = "thock_adaptive_profile_v1"
 const MAX_STORED_WORDS = 350
@@ -60,8 +61,11 @@ export function extractWordAttempts(
     const typedChars = Math.max(1, charKeys.length)
     const accuracy = Math.max(0, Math.min(100, Math.round(((typedChars - errors) / typedChars) * 100)))
 
-    // WPM for this word: (chars / 5) / (duration in minutes)
-    const wpm = Math.max(5, Math.min(280, Math.round(((targetWord.length + 1) / 5) / (durationMs / 60000))))
+    // WPM for this word based on characters actually typed.
+    // Completed words include the trailing space commit; partial words
+    // never inflate speed by assuming untyped characters were typed.
+    const effectiveChars = wordCompleted ? typedChars + 1 : Math.max(1, typedChars)
+    const wpm = Math.max(5, Math.min(280, Math.round((effectiveChars / 5) / (durationMs / 60000))))
     const avgLatency = Math.round(durationMs / typedChars)
 
     attempts.push({
@@ -155,12 +159,32 @@ export function recordSessionTelemetry(
 
   // 3. Ingest N-gram transitions
   const ngramMap = { ...profile.ngrams }
-  for (let i = 0; i < targetText.length; i++) {
-    const targetWord = targetText[i]
-    if (!targetWord) continue
 
-    // Keystrokes matching this target word
-    const samples = extractNGramSamplesFromKeystrokes(targetWord, keystrokes)
+  // Partition keystrokes into per-word slices in a single sequential pass,
+  // mirroring extractWordAttempts. Each n-gram is ingested exactly once per
+  // occurrence and cross-word transitions are never paired as bigrams.
+  const wordKeySlices: Array<{ word: string; keys: Keystroke[] }> = []
+  let sliceBucket: Keystroke[] = []
+  let sliceWordIdx = 0
+  for (const k of keystrokes) {
+    if (k.code === "Space" || k.key === " ") {
+      const sliceWord = targetText[sliceWordIdx]
+      if (sliceWord && sliceBucket.length > 0) {
+        wordKeySlices.push({ word: sliceWord, keys: sliceBucket })
+      }
+      sliceBucket = []
+      sliceWordIdx++
+      continue
+    }
+    sliceBucket.push(k)
+  }
+  const lastSliceWord = targetText[sliceWordIdx]
+  if (lastSliceWord && sliceBucket.length > 0) {
+    wordKeySlices.push({ word: lastSliceWord, keys: sliceBucket })
+  }
+
+  for (const { word, keys } of wordKeySlices) {
+    const samples = extractNGramSamplesFromKeystrokes(word, keys)
     for (const sample of samples) {
       if (ngramMap[sample.ngram]) {
         ngramMap[sample.ngram] = updateNGramProfile(ngramMap[sample.ngram], sample)
@@ -170,10 +194,17 @@ export function recordSessionTelemetry(
     }
   }
 
-  // Prune least-recently-seen entries if map size exceeds limit to prevent localStorage bloat
+  // Prune least-recently-seen entries if map size exceeds limit to prevent
+  // localStorage bloat. Practice-set words are pinned against pruning.
   const wordEntries = Object.entries(wordMap)
   if (wordEntries.length > MAX_STORED_WORDS) {
-    wordEntries.sort((a, b) => b[1].lastSeenAt - a[1].lastSeenAt)
+    const pinned = new Set(profile.practiceSet || [])
+    wordEntries.sort((a, b) => {
+      const aPin = pinned.has(a[0]) ? 1 : 0
+      const bPin = pinned.has(b[0]) ? 1 : 0
+      if (aPin !== bPin) return bPin - aPin
+      return b[1].lastSeenAt - a[1].lastSeenAt
+    })
     profile.words = Object.fromEntries(wordEntries.slice(0, MAX_STORED_WORDS))
   } else {
     profile.words = wordMap
@@ -190,6 +221,22 @@ export function recordSessionTelemetry(
   profile.testCount = (profile.testCount || 0) + 1
   profile.lastUpdatedAt = Date.now()
   profile.weaknesses = extractWeaknessDistribution(profile)
+
+  // Practice vocabulary rotation: graduate mastered words, drop failing
+  // rehab words, refill the set. Runs after word profiles are updated so
+  // streak/mastery heuristics see this session's results.
+  const { practiceSet, newlyMastered } = updatePracticeSetOnSession(
+    profile.practiceSet || [],
+    wordAttempts,
+    profile
+  )
+  profile.practiceSet = practiceSet
+  if (newlyMastered.length > 0) {
+    profile.practiceStats = {
+      ...profile.practiceStats,
+      mastered: (profile.practiceStats?.mastered || 0) + newlyMastered.length,
+    }
+  }
 
   // 4. Save to LocalStorage
   if (typeof window !== "undefined") {

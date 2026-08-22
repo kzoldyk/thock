@@ -21,7 +21,7 @@ export function deriveUserTypingState(
 ): UserTypingState {
   const testCount = profile?.testCount ?? records.length
 
-  if (!profile || testCount < 3 || records.length === 0) {
+  if (!profile || testCount < 3) {
     return {
       baselineWpm: DEFAULT_BASELINE_WPM,
       recentWpm: DEFAULT_BASELINE_WPM,
@@ -34,6 +34,24 @@ export function deriveUserTypingState(
       confidence: Math.min(0.3, testCount * 0.1),
       momentumScore: 0.5,
       state: "calibrating",
+    }
+  }
+
+  // Profile telemetry exists but no saved tests (e.g., guest session or
+  // cleared history): neutral stable state so weakness drilling keeps working.
+  if (records.length === 0) {
+    return {
+      baselineWpm: DEFAULT_BASELINE_WPM,
+      recentWpm: DEFAULT_BASELINE_WPM,
+      baselineAccuracy: DEFAULT_BASELINE_ACCURACY,
+      recentAccuracy: DEFAULT_BASELINE_ACCURACY,
+      wpmTrend: 0,
+      accuracyTrend: 0,
+      consistency: 80,
+      difficultyLevel: 0.45,
+      confidence: Math.min(0.6, testCount * 0.08),
+      momentumScore: 0.5,
+      state: "stable",
     }
   }
 

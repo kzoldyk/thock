@@ -4,10 +4,28 @@ import { useRef, useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
+import {
+  Volume2,
+  VolumeX,
+  Keyboard as KeyboardIcon,
+  Moon,
+  Sun,
+  Timer,
+  Type as TypeIcon,
+  Quote,
+  Code2,
+  Trophy,
+  Sparkles,
+  Flower2
+} from "lucide-react"
 import { KeyboardScene, type KeyboardHandle } from "@/components/keyboard/KeyboardScene"
 import { Keyboard2D } from "@/components/keyboard/Keyboard2D"
 import { StatsBar } from "@/components/type/StatsBar"
 import { QuickBar } from "@/components/type/QuickBar"
+import { TimerBar } from "@/components/type/TimerBar"
+import { Initiation } from "@/components/type/Initiation"
+import { SwitchLab } from "@/components/type/SwitchLab"
+import { MobileTabBar } from "@/components/type/MobileTabBar"
 import { WordsDisplay } from "@/components/type/Words"
 import { ResultCard } from "@/components/type/ResultCard"
 import { useTypingSession, DEV_QUOTES } from "@/hooks/useTypingSession"
@@ -86,6 +104,7 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
   const [initialSnapshot, setInitialSnapshot] = useState<any>(null)
   const [showSavePrompt, setShowSavePrompt] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [switchLabOpen, setSwitchLabOpen] = useState(false)
 
   // Capture snapshot when modal opens
   useEffect(() => {
@@ -328,31 +347,19 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
                   </Section>
                 )}
 
-                <Section title="Switch Sounds Pack">
-                  <select
-                    value={switchPackId}
-                    onChange={(e) => setSwitchPackId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
+                <Section title="Switch Lab">
+                  <button
+                    onClick={() => setSwitchLabOpen(true)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold hover:bg-[var(--chrome-surface)] hover:border-[var(--foreground)]/20 transition-colors cursor-pointer flex items-center justify-between"
                   >
-                    {switchProfiles.map((sw) => (
-                      <option key={sw.id} value={sw.packId} className="bg-[var(--background)] text-[var(--foreground)]">
-                        {sw.name}
-                      </option>
-                    ))}
-                  </select>
-                </Section>
-
-                <Section title="Acoustic Dampener">
-                  <select
-                    value={dampenerId}
-                    onChange={(e) => setDampenerId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] text-xs text-[var(--foreground)] font-semibold focus:outline-none hover:bg-[var(--chrome-surface)] transition-colors cursor-pointer"
-                  >
-                    <option value="none" className="bg-[var(--background)] text-[var(--foreground)]">None (Pure Clack)</option>
-                    <option value="tape" className="bg-[var(--background)] text-[var(--foreground)]">Tape Mod (Creamy Mids)</option>
-                    <option value="foam" className="bg-[var(--background)] text-[var(--foreground)]">Foam Mod (Deep Thock)</option>
-                    <option value="gasket" className="bg-[var(--background)] text-[var(--foreground)]">Gasket Mount (Soft Cushioned)</option>
-                  </select>
+                    <span className="text-left">
+                      <span className="block">{switchProfiles.find((sw) => sw.packId === switchPackId)?.name || "Custom pack"}</span>
+                      <span className="block text-[10px] text-[var(--muted)] font-medium">
+                        Dampener: {dampenerId === "none" ? "none" : dampenerId} · reverb {Math.round(reverb * 100)}%
+                      </span>
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]">Open lab →</span>
+                  </button>
                 </Section>
 
                 <Section title="Keyboard Visualizer">
@@ -452,6 +459,7 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
           </motion.div>
         </div>
       )}
+      <SwitchLab open={switchLabOpen} onClose={() => setSwitchLabOpen(false)} />
     </AnimatePresence>
   )
 }
@@ -576,6 +584,32 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string } | null>(null)
   const [authOpen, setAuthOpen] = useState(false)
 
+  // F1 — Initiation ritual: first visit gets the keycap ceremony
+  const [introDone, setIntroDone] = useState(true)
+  useEffect(() => {
+    try {
+      setIntroDone(localStorage.getItem("thock_initiated") === "1")
+    } catch {
+      setIntroDone(true)
+    }
+  }, [])
+  const handleIntroComplete = () => {
+    try {
+      localStorage.setItem("thock_initiated", "1")
+    } catch {}
+    setIntroDone(true)
+  }
+  const introActive = !introDone
+
+  // Staggered bloom for main sections after the ritual (returning users: all visible)
+  const revealStyle = (order: number): React.CSSProperties => ({
+    opacity: introActive ? 0 : undefined,
+    transform: introActive ? "translateY(12px)" : undefined,
+    filter: introActive ? "blur(6px)" : undefined,
+    transition: "opacity 700ms cubic-bezier(0.16,1,0.3,1), transform 700ms cubic-bezier(0.16,1,0.3,1), filter 700ms cubic-bezier(0.16,1,0.3,1)",
+    transitionDelay: `${order * 110}ms`,
+  })
+
   useEffect(() => {
     const initSession = async () => {
       try {
@@ -690,6 +724,7 @@ export default function Home() {
 
   const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
   const fontFamily = useAppStore((s) => s.fontFamily)
+  const typingMode = useAppStore((s) => s.typingMode)
   const fontClass = getFontClass(fontFamily)
 
   useEffect(() => {
@@ -717,7 +752,7 @@ export default function Home() {
     getHistory,
     getKeystrokes,
     getTargetText,
-  } = useTypingSession(keyboardRef, layoutId, !windowFocused || activeTab !== "Practice")
+  } = useTypingSession(keyboardRef, layoutId, !windowFocused || activeTab !== "Practice" || introActive)
 
   const volume = useAppStore((s) => s.volume)
   const reverb = useAppStore((s) => s.reverb)
@@ -798,6 +833,7 @@ export default function Home() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (introActive) return
         e.preventDefault()
         setSettingsOpen(!useAppStore.getState().settingsOpen)
       }
@@ -824,7 +860,7 @@ export default function Home() {
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("click", handleDocumentClick)
     }
-  }, [setSettingsOpen])
+  }, [setSettingsOpen, introActive])
 
   const toggleDarkMode = () => {
     if (theme.mode === "dark") {
@@ -902,10 +938,11 @@ export default function Home() {
       <div className="absolute bottom-[-15%] left-[25%] right-[25%] h-[35%] bg-gradient-to-t from-[var(--accent)]/3 to-transparent rounded-full blur-[110px] pointer-events-none z-[0] opacity-70" />
 
       {/* Main Layout Container */}
-      <div className="flex flex-col flex-1 justify-between relative z-10" suppressHydrationWarning>
+      <div className="flex flex-col flex-1 justify-between relative z-10 pb-[64px] md:pb-0" suppressHydrationWarning>
         {/* Header Navigation */}
-        <header 
+        <header
           suppressHydrationWarning
+          style={revealStyle(0)}
           className={cn(
             "flex items-center justify-between px-3 xs:px-4 sm:px-8 py-2.5 sm:py-4 relative z-10 select-none flow-transition",
             (flowMode || sessionState === "typing") && "flow-fade-out"
@@ -968,7 +1005,7 @@ export default function Home() {
           <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 shrink-0">
             {/* Quick Switch Sound Voice Selector */}
             <div className="flex items-center gap-1 px-2 xs:px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] hover:bg-[var(--chrome-surface)] transition-all duration-300 button-lift">
-              <span className="text-[11px] sm:text-xs">🔊</span>
+              <Volume2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[var(--muted)]" />
               <select
                 value={switchPackId}
                 onChange={(e) => setSwitchPackId(e.target.value)}
@@ -985,29 +1022,29 @@ export default function Home() {
 
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-xs sm:text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
               title={soundEnabled ? "Mute Key Sounds" : "Unmute Key Sounds"}
               aria-label={soundEnabled ? "Mute Key Sounds" : "Unmute Key Sounds"}
             >
-              {soundEnabled ? "🔊" : "🔇"}
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </button>
 
             <button
               onClick={() => setShowKeyboard(!showKeyboard)}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-xs sm:text-sm hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
               title={showKeyboard ? "Hide Keyboard" : "Show Keyboard"}
               aria-label={showKeyboard ? "Hide Keyboard" : "Show Keyboard"}
             >
-              ⌨️
+              <KeyboardIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             <button
               onClick={toggleDarkMode}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-xs sm:text-sm text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[var(--chrome-border)] bg-[var(--chrome-surface-soft)] flex items-center justify-center text-[var(--foreground)] hover:bg-[var(--chrome-surface)] transition-all duration-300 cursor-pointer button-lift"
               title="Toggle Theme"
               aria-label="Toggle Theme"
             >
-              {isDark ? "🔆" : "🌙"}
+              {isDark ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </button>
             
             <button
@@ -1058,20 +1095,28 @@ export default function Home() {
             <>
               {/* Quick Mode & Timer Toolbar */}
               {sessionState !== "finished" && (
-                <div className={cn("flex justify-center pt-1 pb-0.5 flow-transition z-20", (flowMode || sessionState === "typing") && "flow-fade-out")}>
+                <div style={revealStyle(1)} className={cn("flex justify-center pt-1 pb-0.5 flow-transition z-20", (flowMode || sessionState === "typing") && "flow-fade-out")}>
                   <QuickBar />
                 </div>
               )}
 
               {/* Stats bar */}
               {sessionState !== "finished" && (
-                <div className={cn("flex justify-center flow-transition", (flowMode || sessionState === "typing") && "flow-fade-out")}>
+                <div style={revealStyle(1)} className={cn("flex justify-center flow-transition", (flowMode || sessionState === "typing") && "flow-fade-out")}>
                   <StatsBar stats={stats} sessionState={sessionState} />
                 </div>
               )}
 
+              {/* Signature spacebar countdown (time mode only, stays visible while typing) */}
+              {typingMode === "time" && sessionState !== "finished" && !zenMode && (
+                <div style={revealStyle(2)} className={cn("flex justify-center pb-1 flow-transition", flowMode && "flow-fade-out")}>
+                  <TimerBar elapsedMs={stats.elapsedMs} sessionState={sessionState} />
+                </div>
+              )}
+
               {/* Typing Paragraph Focus Box */}
-              <div 
+              <div
+                style={revealStyle(2)}
                 className="flex-1 flex flex-col justify-center min-h-[70px] xs:min-h-[90px] sm:min-h-[150px] cursor-text"
                 onClick={() => mobileInputRef.current?.focus()}
               >
@@ -1126,7 +1171,7 @@ export default function Home() {
 
               {/* Keyboard Display Section */}
               {showKeyboard && !zenMode && sessionState !== "finished" && (
-                <div className="relative px-1 xs:px-2 sm:px-6 pb-2 sm:pb-4 max-w-[900px] w-full mx-auto flex flex-col items-center">
+                <div style={revealStyle(3)} className="relative px-1 xs:px-2 sm:px-6 pb-2 sm:pb-4 max-w-[900px] w-full mx-auto flex flex-col items-center">
                   {keyboardType === "2d" ? (
                     <Keyboard2D
                       layoutId={layoutId}
@@ -1179,11 +1224,13 @@ export default function Home() {
                 transition={{ duration: 0.4, ease: "easeOut" }}
                 className="text-center flex flex-col items-center px-4"
               >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center text-2xl shadow-sm mb-4 sm:mb-6 relative overflow-hidden">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)] flex items-center justify-center shadow-sm mb-4 sm:mb-6 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/10 to-transparent" />
-                  <span className="relative z-10 opacity-80">
-                    {activeTab === "Challenges" ? "🏆" : "✨"}
-                  </span>
+                  {activeTab === "Challenges" ? (
+                    <Trophy className="relative z-10 w-6 h-6 opacity-70" />
+                  ) : (
+                    <Sparkles className="relative z-10 w-6 h-6 opacity-70" />
+                  )}
                 </div>
                 <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[var(--foreground)]">{activeTab}</h2>
                 <p className="text-[12px] sm:text-[13px] text-[var(--muted)] max-w-[28ch] mx-auto mt-2 leading-relaxed">
@@ -1196,7 +1243,7 @@ export default function Home() {
 
         {/* Footer hint details */}
         {activeTab === "Practice" && (
-          <footer className={cn(
+          <footer style={revealStyle(4)} className={cn(
             "text-center pb-2 sm:pb-4 text-[9px] sm:text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-75 flow-transition",
             (flowMode || sessionState === "typing") && "flow-fade-out"
           )}>
@@ -1260,10 +1307,10 @@ export default function Home() {
             transition={{ duration: 0.35, ease: "easeOut" }}
             className="fixed bottom-14 sm:bottom-16 left-1/2 -translate-x-1/2 z-30 max-w-[94vw] sm:max-w-md w-full px-2"
           >
-            <div className="glass-panel p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-emerald-500/30 bg-[var(--chrome-surface-strong)] flex items-center justify-between gap-3 backdrop-blur-xl">
+            <div className="glass-panel p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-[var(--success)]/30 bg-[var(--chrome-surface-strong)] flex items-center justify-between gap-3 backdrop-blur-xl">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 text-base">
-                  🧘
+                <div className="w-8 h-8 rounded-xl bg-[var(--success)]/15 border border-[var(--success)]/30 flex items-center justify-center shrink-0">
+                  <Flower2 className="w-4 h-4 text-[var(--success)]" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11px] sm:text-xs font-bold text-[var(--foreground)] truncate">
@@ -1303,6 +1350,18 @@ export default function Home() {
       <SettingsPanel isDarkMode={isDark} fontClass={fontClass} currentUser={currentUser} />
       <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} isDarkMode={isDark} fontClass={fontClass} />
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} fontClass={fontClass} onSuccess={(user) => setCurrentUser(user)} />
+
+      {/* F1 — First-visit keycap ritual */}
+      <AnimatePresence>
+        {introActive && <Initiation onComplete={handleIntroComplete} />}
+      </AnimatePresence>
+
+      {/* F6 — Mobile bottom navigation (desktop uses the pill nav) */}
+      <MobileTabBar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        hidden={introActive || sessionState === "finished"}
+      />
 
       {/* Click to Focus Overlay */}
       {sessionState === "typing" && !windowFocused && (

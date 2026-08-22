@@ -76,11 +76,22 @@ export interface UserTypingState {
   state: UserStateCategory
 }
 
+export interface PracticeSetStats {
+  /** Cumulative count of words rotated out after mastering */
+  mastered: number
+}
+
 export interface UserTypingProfile {
   letters: Record<string, LetterStat>
   words: Record<string, WordProfile>
   ngrams: Record<string, NGramProfile>
   weaknesses: WeaknessItem[]
+  /**
+   * Curated muscle-memory vocabulary (~50-70 words): fast-and-clean known
+   * words + rehab words targeting weaknesses. Optional for migration safety.
+   */
+  practiceSet?: string[]
+  practiceStats?: PracticeSetStats
   testCount: number
   lastUpdatedAt: number
 }
@@ -110,4 +121,6 @@ export interface GenerationContext {
   gripProfile?: UserGripProfile | null
   testCount?: number
   complex?: boolean
+  /** Curated practice vocabulary drawn at a high rate during generation */
+  practiceSet?: string[]
 }
