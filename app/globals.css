@@ -161,6 +161,32 @@ body {
   animation: smooth-blink 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+/* Heartbeat — one lub-dub per second, for the final countdown */
+@keyframes heartbeat {
+  0% { transform: scale(1); }
+  12% { transform: scale(1.16); }
+  24% { transform: scale(1); }
+  36% { transform: scale(1.09); }
+  55%, 100% { transform: scale(1); }
+}
+
+@keyframes heartbeat-glow {
+  0% { opacity: 0.06; }
+  12% { opacity: 0.22; }
+  24% { opacity: 0.06; }
+  36% { opacity: 0.15; }
+  55%, 100% { opacity: 0.06; }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 1s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+  will-change: transform;
+}
+
+.animate-heartbeat-glow {
+  animation: heartbeat-glow 1s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+
 /* Caret movement smoothing */
 .caret-transition {
   transition: transform var(--motion-fast) var(--ease-out-expo),

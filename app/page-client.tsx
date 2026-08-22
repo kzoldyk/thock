@@ -28,7 +28,7 @@ import { SwitchLab } from "@/components/type/SwitchLab"
 import { MobileTabBar } from "@/components/type/MobileTabBar"
 import { WordsDisplay } from "@/components/type/Words"
 import { ResultCard } from "@/components/type/ResultCard"
-import { useTypingSession, DEV_QUOTES } from "@/hooks/useTypingSession"
+import { useTypingSession } from "@/hooks/useTypingSession"
 import { useAppStore } from "@/stores/useAppStore"
 import { audioEngine } from "@/engines/audioEngine"
 import { appThemes } from "@/lib/themes"
@@ -94,21 +94,22 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
     soundEnabled, setSoundEnabled,
     keyboardType, setKeyboardType,
     flowMode,
-    paragraphMode, setParagraphMode,
+    paragraphMode,
     zenMode, setZenMode,
     dampenerId, setDampenerId,
   } = useAppStore()
 
   const store = useAppStore()
 
-  const [initialSnapshot, setInitialSnapshot] = useState<any>(null)
+  const [initialSnapshot, setInitialSnapshot] = useState<Record<string, unknown> | null>(null)
   const [showSavePrompt, setShowSavePrompt] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [switchLabOpen, setSwitchLabOpen] = useState(false)
 
-  // Capture snapshot when modal opens
+  // Capture snapshot when modal opens (deferred setState keeps render pure)
   useEffect(() => {
-    if (settingsOpen) {
+    if (!settingsOpen) return
+    const t = setTimeout(() => {
       setInitialSnapshot({
         layoutId, keyboardThemeId, appThemeId, switchPackId, volume, keyVolume,
         reducedMotion, stereoWidth, reverb, pitch, fontFamily, typingMode,
@@ -116,7 +117,9 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
         flowMode, paragraphMode, zenMode, dampenerId
       })
       setShowSavePrompt(false)
-    }
+    }, 0)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsOpen])
 
   const handleCloseRequest = () => {
@@ -224,7 +227,7 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
                       disabled={isSaving}
                       className="w-full py-2.5 rounded-xl bg-[var(--chrome-surface-soft)] text-[var(--foreground)] border border-[var(--chrome-border)] font-medium text-sm transition-transform hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      Don't Save
+                      Don&apos;t Save
                     </button>
                     <button 
                       onClick={() => setShowSavePrompt(false)}
@@ -459,7 +462,7 @@ function SettingsPanel({ fontClass, currentUser }: { isDarkMode: boolean; fontCl
           </motion.div>
         </div>
       )}
-      <SwitchLab open={switchLabOpen} onClose={() => setSwitchLabOpen(false)} />
+      {settingsOpen && <SwitchLab open={switchLabOpen} onClose={() => setSwitchLabOpen(false)} />}
     </AnimatePresence>
   )
 }
@@ -587,11 +590,14 @@ export default function Home() {
   // F1 — Initiation ritual: first visit gets the keycap ceremony
   const [introDone, setIntroDone] = useState(true)
   useEffect(() => {
-    try {
-      setIntroDone(localStorage.getItem("thock_initiated") === "1")
-    } catch {
-      setIntroDone(true)
-    }
+    const t = setTimeout(() => {
+      try {
+        setIntroDone(localStorage.getItem("thock_initiated") === "1")
+      } catch {
+        setIntroDone(true)
+      }
+    }, 0)
+    return () => clearTimeout(t)
   }, [])
   const handleIntroComplete = () => {
     try {
@@ -683,6 +689,8 @@ export default function Home() {
             soundEnabled: state.soundEnabled,
             keyboardType: state.keyboardType,
             flowMode: state.flowMode,
+            paragraphMode: state.paragraphMode,
+            zenMode: state.zenMode,
             dampenerId: state.dampenerId,
           }
 

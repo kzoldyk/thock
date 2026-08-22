@@ -19,21 +19,25 @@ export function Initiation({ onComplete }: { onComplete: () => void }) {
   const [done, setDone] = useState(false)
   const completingRef = useRef(false)
 
+  const registerPress = (char: string, code = "Space") => {
+    if (completingRef.current) return
+    audioEngine.playDown(code, 0)
+    setLastChar(char)
+    setRipples((r) => [...r.slice(-5), { id: Date.now() + Math.random(), char }])
+    setPresses((p) => p + 1)
+  }
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat || completingRef.current) return
+      if (e.repeat) return
       if (!/^(Key[A-Z]|Space|Semicolon|Comma|Period)$/.test(e.code)) return
       e.preventDefault()
-
-      audioEngine.playDown(e.code, 0)
-
       const char = e.code === "Space" ? "␣" : e.code.startsWith("Key") ? e.code[3].toLowerCase() : ";"
-      setLastChar(char)
-      setRipples((r) => [...r.slice(-5), { id: Date.now() + Math.random(), char }])
-      setPresses((p) => p + 1)
+      registerPress(char, e.code)
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -57,11 +61,15 @@ export function Initiation({ onComplete }: { onComplete: () => void }) {
   return (
     <motion.div
       data-testid="initiation-overlay"
+      role="dialog"
+      aria-label="Welcome ritual — press any key ten times to begin"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, filter: "blur(14px)", scale: 1.05 }}
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       className="fixed inset-0 z-[70] flex flex-col items-center justify-center select-none cursor-default"
       style={{ background: "var(--background)" }}
+      // Mobile: no hardware keyboard — taps count as presses
+      onPointerDown={() => registerPress("␣")}
     >
       {/* Ambient accent glow */}
       <div className="absolute top-[20%] left-[30%] right-[30%] h-[35%] bg-gradient-to-b from-[var(--accent)]/8 to-transparent rounded-full blur-[120px] pointer-events-none" />
@@ -134,7 +142,7 @@ export function Initiation({ onComplete }: { onComplete: () => void }) {
             >
               <p className="text-sm text-[var(--muted)] font-medium">press any key</p>
               <p className="mt-1 text-[11px] tabular-nums text-[var(--muted)] opacity-70">
-                {presses} / {PRESS_TARGET}
+                {presses} / {PRESS_TARGET} · or tap
               </p>
             </motion.div>
           )}

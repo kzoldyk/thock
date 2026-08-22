@@ -29,18 +29,18 @@ export const TimerBar = memo(function TimerBar({ elapsedMs, sessionState }: Time
         role="timer"
         aria-label={`${secondsLeft} seconds remaining`}
         className={cn(
-          "relative h-[34px] sm:h-[40px] rounded-xl border overflow-hidden",
-          "bg-[var(--chrome-surface)] border-[var(--chrome-border)]",
-          // Keycap depth: top light edge + bottom shadow, like a real spacebar
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-2px_3px_rgba(0,0,0,0.10)]",
-          urgent && "border-[var(--accent)]/50"
+          "relative h-[34px] sm:h-[40px] rounded-xl border overflow-hidden transition-colors duration-300",
+          "bg-[var(--chrome-surface)]",
+          urgent
+            ? "border-[var(--danger)]/60 shadow-[0_0_18px_rgba(244,63,94,0.35)]"
+            : "border-[var(--chrome-border)] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-2px_3px_rgba(0,0,0,0.10)]"
         )}
       >
         {/* Depleting fill, anchored right so it drains toward the thumbs */}
         <div
           className={cn(
             "absolute inset-y-0 right-0 transition-[width] duration-150 ease-linear",
-            urgent ? "bg-[var(--accent)]/25" : "bg-[var(--accent)]/12"
+            urgent ? "bg-[var(--danger)]/25" : "bg-[var(--accent)]/12"
           )}
           style={{ width: `${progress * 100}%` }}
         />
@@ -49,8 +49,10 @@ export const TimerBar = memo(function TimerBar({ elapsedMs, sessionState }: Time
         {progress > 0 && progress < 1 && (
           <div
             className={cn(
-              "absolute inset-y-0 w-[2px] transition-[left] duration-150 ease-linear",
-              urgent ? "bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]" : "bg-[var(--accent)]/50"
+              "absolute inset-y-0 w-[2px] transition-[left] duration-150 ease-linear transition-colors",
+              urgent
+                ? "bg-[var(--danger)] shadow-[0_0_10px_var(--danger)]"
+                : "bg-[var(--accent)]/50"
             )}
             style={{ left: `${(1 - progress) * 100}%` }}
           />
@@ -65,24 +67,26 @@ export const TimerBar = memo(function TimerBar({ elapsedMs, sessionState }: Time
           <span
             className={cn(
               "text-sm sm:text-base font-bold tabular-nums tracking-tight transition-colors duration-300",
-              urgent ? "text-[var(--accent)] animate-pulse" : "text-[var(--foreground)] opacity-80"
+              urgent
+                ? "text-[var(--danger)] animate-heartbeat"
+                : "text-[var(--foreground)] opacity-80"
             )}
           >
             {secondsLeft}
           </span>
           <span
             className={cn(
-              "text-[10px] font-semibold uppercase tracking-widest",
-              urgent ? "text-[var(--accent)]" : "text-[var(--muted)]"
+              "text-[10px] font-semibold uppercase tracking-widest transition-colors duration-300",
+              urgent ? "text-[var(--danger)]" : "text-[var(--muted)]"
             )}
           >
             sec
           </span>
         </div>
 
-        {/* Urgency glow */}
+        {/* Heartbeat glow — pulses once per remaining second */}
         {urgent && (
-          <div className="absolute inset-0 pointer-events-none animate-pulse bg-[var(--accent)]/5" />
+          <div className="absolute inset-0 pointer-events-none bg-[var(--danger)] animate-heartbeat-glow" />
         )}
       </div>
     </div>

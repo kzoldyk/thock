@@ -490,7 +490,7 @@ export function generateWords(count: number = 30, seed?: number, complex: boolea
 
 export interface AdaptiveWordOptions {
   gripProfile?: UserGripProfile | null
-  profile?: any
+  profile?: UserTypingProfile | null
   testCount?: number
   seed?: number
   complex?: boolean

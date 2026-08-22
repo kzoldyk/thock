@@ -21,7 +21,7 @@ import {
   Share2,
   Gauge
 } from "lucide-react"
-import type { TypingStats, Keystroke } from "@/types"
+import type { TypingStats, Keystroke, WordData } from "@/types"
 import type { StatsSample } from "@/engines/metrics/history"
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber"
 import { ConfettiBurst } from "@/components/ui/Confetti"
@@ -47,7 +47,7 @@ interface Props {
   onViewLeaderboard?: () => void
   onViewStatistics?: () => void
   keystrokes?: Keystroke[]
-  words?: any[]
+  words?: WordData[]
   targetText?: string[]
 }
 
@@ -149,15 +149,17 @@ export function ResultCard({
   const [secretHint, setSecretHint] = useState<string | null>(null)
 
   // Save score locally and submit online
-  useEffect(() => {
-    if (hasSubmitted.current) return
-    hasSubmitted.current = true
+  const deferredTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => {
+      if (hasSubmitted.current) return
+      hasSubmitted.current = true
 
-    // Capture previous history BEFORE this test is appended for the delta
-    const prevHistory = getLocalHistory()
+      // Capture previous history BEFORE this test is appended for the delta
+      const prevHistory = getLocalHistory()
 
-    // 1. Save score locally for instant offline-first stats
-    saveLocalTestResult({
+      // 1. Save score locally for instant offline-first stats
+      saveLocalTestResult({
       wpm: stats.wpm,
       rawWpm: stats.raw,
       accuracy: stats.accuracy,
@@ -247,7 +249,7 @@ export function ResultCard({
     }
 
     // 4. Deferred UI state: telemetry has settled by now
-    const t = setTimeout(() => {
+    deferredTimer.current = setTimeout(() => {
       if (prevHistory.length > 0) {
         const recent = [...prevHistory]
           .sort((a, b) => b.createdAt - a.createdAt)
@@ -272,14 +274,16 @@ export function ResultCard({
       setMasteredCount(getLocalAdaptiveProfile().practiceStats?.mastered || 0)
       setSecrets(getSecretsProgress())
       setSecretHint(pickUndiscoveredHint())
-    }, 50)
-
-    const confettiT = showConfetti ? setTimeout(() => setShowConfetti(false), 3200) : null
-    return () => {
-      clearTimeout(t)
-      if (confettiT) clearTimeout(confettiT)
-    }
+      }, 50)
   }, [currentUser, stats, timeLimit, typingMode, keystrokes])
+
+  // The deferred timer must survive dep churn (stats identity changes every
+  // parent rerender) — clear it ONLY on unmount.
+  useEffect(() => {
+    return () => {
+      if (deferredTimer.current) clearTimeout(deferredTimer.current)
+    }
+  }, [])
 
   // In-depth diagnostics computations
   const burstWpm = useMemo(() => {

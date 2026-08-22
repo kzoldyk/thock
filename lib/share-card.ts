@@ -128,6 +128,7 @@ export async function shareOrDownload(blob: Blob): Promise<"shared" | "downloade
   a.href = url
   a.download = "thock-score.png"
   a.click()
-  URL.revokeObjectURL(url)
+  // Revoke asynchronously — synchronous revoke can cancel the download
+  setTimeout(() => URL.revokeObjectURL(url), 4000)
   return "downloaded"
 }

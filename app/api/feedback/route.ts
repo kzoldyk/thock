@@ -206,9 +206,21 @@ export async function POST(request: Request) {
 
 /**
  * GET /api/feedback — recent submissions for the /analytics dashboard.
+ * Password-gated with the same credential as /api/analytics (PII protection).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const ANALYTICS_PASSWORD = process.env.ANALYTICS_PASSWORD || "1501"
+    const provided =
+      request.headers.get("x-analytics-password") ||
+      new URL(request.url).searchParams.get("password")
+    if (provided !== ANALYTICS_PASSWORD) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized", feedback: [] },
+        { status: 401 }
+      )
+    }
+
     const rows = await db.query<FeedbackRow>(
       `SELECT id, type, name, email, message, user_agent, language, screen, os, is_mocked, status, created_at
        FROM feedback

@@ -247,9 +247,15 @@ export default function AnalyticsDashboard() {
     setFeedbackLoading(true);
     setFeedbackError(null);
     try {
-      const res = await fetch("/api/feedback");
+      const analyticsPassword =
+        (typeof window !== "undefined" ? sessionStorage.getItem("analytics_auth_token") : "") || "";
+      const res = await fetch("/api/feedback", {
+        headers: { "x-analytics-password": analyticsPassword },
+      });
       const json = await res.json();
-      if (json.success && Array.isArray(json.feedback)) {
+      if (res.status === 401) {
+        setFeedbackError("Unauthorized — unlock analytics first.");
+      } else if (json.success && Array.isArray(json.feedback)) {
         setFeedbackItems(json.feedback);
         setFeedbackLoaded(true);
       } else {
