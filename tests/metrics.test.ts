@@ -4,6 +4,7 @@ import { calculateAverageRawWpm } from "@/engines/metrics/rawWpm"
 import { calculateAccuracy } from "@/engines/metrics/accuracy"
 import { calculateConsistency, calculateConsistencyFromHistory } from "@/engines/metrics/consistency"
 import { createStatsHistory } from "@/engines/metrics/history"
+import { computeStats } from "@/engines/typingEngine"
 
 describe("typing metrics", () => {
   it("calculates average WPM from correct characters and elapsed time", () => {
@@ -34,5 +35,36 @@ describe("typing metrics", () => {
 
     expect(calculateRollingWpm(history.toArray(), 2000)).toBe(90)
     expect(calculateConsistencyFromHistory(history.toArray())).toBeGreaterThanOrEqual(98)
+  })
+
+  it("returns 0 instead of echoing a spiked first sample (4000-WPM bug)", () => {
+    const history = createStatsHistory(8)
+    // Session-start spike: tiny window extrapolated to an absurd value
+    history.push({ timestamp: 100, liveWpm: 2400, rawWpm: 2400, accuracy: 99, correctChars: 2, incorrectChars: 0 })
+
+    expect(calculateRollingWpm(history.toArray(), 2000)).toBe(0)
+
+    // Two samples but only 150ms apart — too short to trust
+    history.push({ timestamp: 250, liveWpm: 2400, rawWpm: 2400, accuracy: 99, correctChars: 3, incorrectChars: 0 })
+    expect(calculateRollingWpm(history.toArray(), 2000)).toBe(0)
+  })
+
+  it("computeStats clamps impossible WPM values", () => {
+    const stats = computeStats(
+      [],
+      ["test"],
+      50, // 50ms — absurdly short window
+      [
+        { key: "t", code: "KeyT", isCorrect: true, timestamp: 1 },
+        { key: "e", code: "KeyE", isCorrect: true, timestamp: 20 },
+        { key: "s", code: "KeyS", isCorrect: true, timestamp: 40 },
+      ],
+      [],
+      0,
+      3,
+    )
+    expect(stats.wpm).toBeLessThanOrEqual(400)
+    expect(stats.raw).toBeLessThanOrEqual(400)
+    expect(Number.isFinite(stats.liveWpm)).toBe(true)
   })
 })

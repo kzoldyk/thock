@@ -183,6 +183,14 @@ export function processKey(
   }
 }
 
+// Anything beyond ~300 WPM burst territory is sampling noise (tiny elapsed
+// windows at session start), not real typing. Clamped defensively.
+const WPM_CEILING = 400
+function clampWpm(value: number): number {
+  if (!Number.isFinite(value) || value < 0) return 0
+  return Math.min(value, WPM_CEILING)
+}
+
 export function computeStats(
   words: WordData[],
   targetText: string[],
@@ -194,12 +202,12 @@ export function computeStats(
 ): TypingStats {
   const mistakeStats = calculateMistakes(words, targetText)
   const totalTyped = keystrokes.filter((key) => key.code !== "Backspace").length
-  const averageWpm = calculateAverageWpm(mistakeStats.correctCharacters + mistakeStats.correctSpaces, elapsedMs)
-  const raw = calculateAverageRawWpm(totalTyped, elapsedMs)
+  const averageWpm = clampWpm(calculateAverageWpm(mistakeStats.correctCharacters + mistakeStats.correctSpaces, elapsedMs))
+  const raw = clampWpm(calculateAverageRawWpm(totalTyped, elapsedMs))
 
   const latestHistory = history[history.length - 1]
   const liveWpmUnsmoothed = history.length > 0 ? calculateRollingWpm(history) : averageWpm
-  const liveWpm = smoothMetric(latestHistory?.liveWpm ?? null, liveWpmUnsmoothed)
+  const liveWpm = clampWpm(smoothMetric(latestHistory?.liveWpm ?? null, liveWpmUnsmoothed))
   const correctKeystrokes = mistakeStats.correctCharacters + mistakeStats.correctSpaces
   const incorrectKeystrokes = mistakeStats.incorrectCharacters
   const accuracy = calculateAccuracy(correctKeystrokes, incorrectKeystrokes)

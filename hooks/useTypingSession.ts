@@ -312,7 +312,13 @@ export function useTypingSession(
     )
     statsRef.current = nextStats
 
-    if (history.length === 0 || elapsed - lastSampleAtRef.current >= 200 || s.state === "finished") {
+    // First sample only after a full second of real typing — sampling at
+    // ~100ms produces absurd per-minute extrapolations (the 4000-WPM spike).
+    const shouldSample =
+      (history.length === 0 && elapsed >= 1000) ||
+      (history.length > 0 && elapsed - lastSampleAtRef.current >= 200) ||
+      s.state === "finished"
+    if (shouldSample) {
       historyRef.current.push({
         timestamp: now,
         liveWpm: nextStats.liveWpm,
