@@ -234,6 +234,10 @@ export function useTypingSession(
   // Re-seed words after hydration or mode change so they differ per session
   useEffect(() => {
     const seed = Date.now()
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
     sessionRef.current = freshSession(typingMode, seed, complexWords)
     activeKeysRef.current.clear()
     resetStatsBuffers()
@@ -253,6 +257,9 @@ export function useTypingSession(
   const computeLatestStats = useCallback(() => {
     const s = sessionRef.current
     if (!s.startTime) return
+    // A leaked/stale interval must be a complete no-op once the session
+    // stopped typing — otherwise finished sessions keep sampling + rerendering.
+    if (s.state !== "typing") return
     const now = performance.now()
     let elapsed = s.endTime ? s.endTime - s.startTime : now - s.startTime
 
@@ -356,6 +363,11 @@ export function useTypingSession(
         }
 
         if (s.state === "idle") {
+          // Clear any stale interval before starting a new one — otherwise
+          // mode/timer re-seeds leak the old handle and intervals multiply.
+          if (timerRef.current) {
+            clearInterval(timerRef.current)
+          }
           s.startTime = performance.now()
           timerRef.current = setInterval(computeLatestStats, 100)
         }
