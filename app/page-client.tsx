@@ -16,7 +16,8 @@ import {
   Code2,
   Trophy,
   Sparkles,
-  Flower2
+  Flower2,
+  ArrowLeft
 } from "lucide-react"
 import { KeyboardScene, type KeyboardHandle } from "@/components/keyboard/KeyboardScene"
 import { Keyboard2D } from "@/components/keyboard/Keyboard2D"
@@ -1211,20 +1212,46 @@ export default function Home() {
               )}
             </>
           ) : activeTab === "Leaderboard" ? (
-            <div className="flex-1 flex items-center justify-center py-4 sm:py-6 px-2 sm:px-4">
-              <LeaderboardView
-                currentUser={currentUser}
-                onOpenAuth={() => setAuthOpen(true)}
-                fontClass={fontClass}
-              />
+            <div className="flex-1 flex flex-col py-4 sm:py-6 px-2 sm:px-4">
+              {sessionState === "finished" && (
+                <div className="flex justify-center mb-3">
+                  <button
+                    onClick={() => setActiveTab("Practice")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[var(--chrome-surface-soft)] text-[var(--foreground)] border border-[var(--chrome-border)] hover:bg-[var(--chrome-surface)] hover:border-[var(--foreground)]/25 transition-all cursor-pointer button-lift"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Back to results
+                  </button>
+                </div>
+              )}
+              <div className="flex-1 flex items-start justify-center">
+                <LeaderboardView
+                  currentUser={currentUser}
+                  onOpenAuth={() => setAuthOpen(true)}
+                  fontClass={fontClass}
+                />
+              </div>
             </div>
           ) : activeTab === "Statistics" ? (
-            <div className="flex-1 flex items-center justify-center py-4 sm:py-6 px-2 sm:px-4">
-              <StatisticsView
-                currentUser={currentUser}
-                onOpenAuth={() => setAuthOpen(true)}
-                fontClass={fontClass}
-              />
+            <div className="flex-1 flex flex-col py-4 sm:py-6 px-2 sm:px-4">
+              {sessionState === "finished" && (
+                <div className="flex justify-center mb-3">
+                  <button
+                    onClick={() => setActiveTab("Practice")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[var(--chrome-surface-soft)] text-[var(--foreground)] border border-[var(--chrome-border)] hover:bg-[var(--chrome-surface)] hover:border-[var(--foreground)]/25 transition-all cursor-pointer button-lift"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Back to results
+                  </button>
+                </div>
+              )}
+              <div className="flex-1 flex items-start justify-center">
+                <StatisticsView
+                  currentUser={currentUser}
+                  onOpenAuth={() => setAuthOpen(true)}
+                  fontClass={fontClass}
+                />
+              </div>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">
@@ -1366,11 +1393,13 @@ export default function Home() {
         {introActive && <Initiation onComplete={handleIntroComplete} />}
       </AnimatePresence>
 
-      {/* F6 — Mobile bottom navigation (desktop uses the pill nav) */}
+      {/* F6 — Mobile bottom navigation (desktop uses the pill nav).
+          Stays available on the result screen so users can reach
+          Leaderboard/Statistics and come back. */}
       <MobileTabBar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        hidden={introActive || sessionState === "finished"}
+        hidden={introActive}
       />
 
       {/* Click to Focus Overlay */}
