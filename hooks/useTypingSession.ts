@@ -192,6 +192,10 @@ export function useTypingSession(
   const historyRef = useRef<StatsHistoryBuffer>(createStatsHistory(120))
   const lastSampleAtRef = useRef(0)
   const activeKeysRef = useRef<Set<string>>(new Set())
+  // performance.now()-based last-stroke tracker — keystroke.timestamp uses
+  // Date.now() (epoch) and must NEVER be diffed against performance.now().
+  const lastStrokePerfRef = useRef(0)
+  const finishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [activeKeysView, setActiveKeysView] = useState<Set<string>>(() => new Set())
   const activeKeyTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const statsRef = useRef<TypingStats>({
@@ -231,6 +235,13 @@ export function useTypingSession(
     lastSampleAtRef.current = 0
   }, [])
 
+  const clearFinishTimer = useCallback(() => {
+    if (finishTimerRef.current) {
+      clearTimeout(finishTimerRef.current)
+      finishTimerRef.current = null
+    }
+  }, [])
+
   // Re-seed words after hydration or mode change so they differ per session
   useEffect(() => {
     const seed = Date.now()
@@ -238,6 +249,7 @@ export function useTypingSession(
       clearInterval(timerRef.current)
       timerRef.current = null
     }
+    clearFinishTimer()
     sessionRef.current = freshSession(typingMode, seed, complexWords)
     activeKeysRef.current.clear()
     resetStatsBuffers()
@@ -276,13 +288,14 @@ export function useTypingSession(
         clearInterval(timerRef.current)
         timerRef.current = null
       }
+      clearFinishTimer()
     }
     
-    // Flow mode logic
+    // Flow mode logic — only when the user is actively typing (3s window)
     const flowThreshold = Math.min(20000, thresholdMs * 0.67)
     if (s.state === "typing" && elapsed >= flowThreshold && !useAppStore.getState().flowMode) {
-      const lastStroke = s.keystrokes[s.keystrokes.length - 1];
-      if (lastStroke && (now - lastStroke.timestamp < 3000)) {
+      const sinceLastStroke = lastStrokePerfRef.current ? now - lastStrokePerfRef.current : Infinity
+      if (sinceLastStroke < 3000) {
          useAppStore.getState().setFlowMode(true);
       }
     }
@@ -329,6 +342,7 @@ export function useTypingSession(
           clearInterval(timerRef.current)
           timerRef.current = null
         }
+        clearFinishTimer()
         activeKeysRef.current.clear()
         setActiveKeysView(new Set())
         resetStatsBuffers()
@@ -370,6 +384,16 @@ export function useTypingSession(
           }
           s.startTime = performance.now()
           timerRef.current = setInterval(computeLatestStats, 100)
+          // Guaranteed finish: a one-shot timeout armed for the exact
+          // remaining time, so the result fires even if the sampling
+          // interval is throttled (background tab) or dies.
+          if (useAppStore.getState().typingMode === "time") {
+            clearFinishTimer()
+            const remainingMs = useAppStore.getState().timeLimit * 1000 - (performance.now() - s.startTime)
+            finishTimerRef.current = setTimeout(() => {
+              computeLatestStats()
+            }, Math.max(0, remainingMs) + 60)
+          }
         }
 
         keyboardRef.current?.pressKey(code)
@@ -402,6 +426,7 @@ export function useTypingSession(
             timestamp: Date.now(),
             target: s.targetText[s.wordIndex]?.[s.charIndex],
           })
+          lastStrokePerfRef.current = performance.now()
 
           if (result.result.wordMistake) {
             s.wordMistakes++
@@ -420,6 +445,7 @@ export function useTypingSession(
               clearInterval(timerRef.current)
               timerRef.current = null
             }
+            clearFinishTimer()
           }
 
           // Easter Egg Checks
@@ -519,7 +545,7 @@ export function useTypingSession(
         }
       }
     },
-    [keyboardRef, getPanValue, computeLatestStats, rerender, resetStatsBuffers, typingMode, complexWords, disabled],
+    [keyboardRef, getPanValue, computeLatestStats, rerender, resetStatsBuffers, typingMode, complexWords, disabled, clearFinishTimer],
   )
 
   const processKeyRelease = useCallback(
@@ -656,10 +682,13 @@ export function useTypingSession(
       if (timerRef.current) {
         clearInterval(timerRef.current)
       }
+      if (finishTimerRef.current) {
+        clearTimeout(finishTimerRef.current)
+      }
       keyTimeouts.forEach((t) => clearTimeout(t))
       keyTimeouts.clear()
     }
-  }, [])
+  }, [clearFinishTimer])
 
   const restart = useCallback(() => {
     const seed = Date.now()
@@ -668,6 +697,7 @@ export function useTypingSession(
       clearInterval(timerRef.current)
       timerRef.current = null
     }
+    clearFinishTimer()
     activeKeysRef.current.clear()
     setActiveKeysView(new Set())
     resetStatsBuffers()
@@ -679,7 +709,7 @@ export function useTypingSession(
       totalTyped: 0, correctChars: 0,
     }
     rerender()
-  }, [typingMode, complexWords, rerender, resetStatsBuffers])
+  }, [typingMode, complexWords, rerender, resetStatsBuffers, clearFinishTimer])
 
   const emitKeyEvent = useCallback(
     (code: string, type: "down" | "up") => {

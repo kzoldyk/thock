@@ -1115,9 +1115,11 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Signature spacebar countdown (time mode only, stays visible while typing) */}
+              {/* Signature spacebar countdown (time mode only).
+                  Stays visible while typing AND in flow mode — the countdown
+                  is essential info; flow only hides decorative chrome. */}
               {typingMode === "time" && sessionState !== "finished" && !zenMode && (
-                <div style={revealStyle(2)} className={cn("flex justify-center pb-1 flow-transition", flowMode && "flow-fade-out")}>
+                <div style={revealStyle(2)} className="flex justify-center pb-1">
                   <TimerBar elapsedMs={stats.elapsedMs} sessionState={sessionState} />
                 </div>
               )}
