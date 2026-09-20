@@ -496,6 +496,8 @@ export interface AdaptiveWordOptions {
   complex?: boolean
   strategy?: "balanced" | "performance" | "training" | "challenge"
   recentWords?: string[]
+  language?: import("./data/frequency").LanguageId
+  adaptive?: boolean
 }
 
 /**
@@ -530,6 +532,8 @@ export function generateAdaptiveWords(
     complex: options.complex,
     strategy: options.strategy,
     recentWords: options.recentWords,
+    language: options.language,
+    adaptive: options.adaptive,
   })
 }
 

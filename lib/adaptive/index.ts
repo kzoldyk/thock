@@ -17,11 +17,12 @@ import type {
 } from "./types"
 import { getLocalAdaptiveProfile } from "./telemetry"
 import { deriveUserTypingState } from "./user-profile"
-import { generateAdaptiveSequence } from "./sequence-generator"
+import { generateAdaptiveSequence, generateFrequencySequence } from "./sequence-generator"
 import { scoreCandidateWord } from "./candidate-scoring"
 import { getLocalHistory } from "../user-stats"
 import { applyComplexity } from "../words"
 import { findEasterEgg } from "../easter-eggs"
+import { getLanguageCeiling, type LanguageId } from "../data/frequency"
 
 export interface AdaptiveWordOptions {
   profile?: UserTypingProfile | null
@@ -30,6 +31,10 @@ export interface AdaptiveWordOptions {
   complex?: boolean
   strategy?: "balanced" | "performance" | "training" | "challenge"
   recentWords?: string[]
+  /** Frequency pool selection — defaults to the top-300 "english" pool */
+  language?: LanguageId
+  /** When false, skips all personalization and generates a pure Zipf sequence */
+  adaptive?: boolean
 }
 
 /**
@@ -39,6 +44,20 @@ export function generatePersonalizedWords(
   count: number = 30,
   options: AdaptiveWordOptions = {}
 ): string[] {
+  const seed = options.seed ?? Date.now()
+  const language = options.language ?? "en"
+
+  // Adaptive engine off: pure flow over the chosen vocabulary
+  if (options.adaptive === false) {
+    const generated = generateFrequencySequence(
+      count,
+      seed,
+      language,
+      getLanguageCeiling(language)
+    )
+    return finishGeneration(generated, seed, options.complex ?? false, count)
+  }
+
   const profile = options.profile !== undefined ? options.profile : getLocalAdaptiveProfile()
   const history = getLocalHistory()
   const userState = deriveUserTypingState(profile, history)
@@ -50,19 +69,31 @@ export function generatePersonalizedWords(
       (userState.state === "calibrating" || (options.testCount ?? history.length) < 5
         ? "performance"
         : "balanced"),
-    seed: options.seed ?? Date.now(),
+    seed,
     recentWords: options.recentWords || [],
     userState,
     userProfile: profile,
     testCount: options.testCount ?? profile?.testCount ?? history.length,
     complex: options.complex ?? false,
     practiceSet: profile?.practiceSet || [],
+    language,
   }
 
   const generated = generateAdaptiveSequence(count, context)
+  return finishGeneration(generated, seed, context.complex ?? false, count)
+}
 
-  if (!options.complex) {
-    return generated
+/**
+ * Shared post-processing: easter-egg-safe complexity transforms.
+ */
+function finishGeneration(
+  generated: string[],
+  seed: number,
+  complex: boolean,
+  count: number
+): string[] {
+  if (!complex || count <= 0) {
+    return generated.slice(0, Math.max(0, count))
   }
 
   // Keep easter egg words pristine through complexity transforms so their
@@ -72,7 +103,7 @@ export function generatePersonalizedWords(
       .map((w) => findEasterEgg(w)?.word)
       .filter((w): w is string => Boolean(w))
   )
-  return applyComplexity(generated, context.seed ?? 42, eggWords)
+  return applyComplexity(generated, seed, eggWords)
 }
 
 /**

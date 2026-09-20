@@ -8,6 +8,7 @@ import type {
 } from "./types"
 import { effectiveDifficulty, classifyDifficultyBand } from "./difficulty"
 import { extractNGrams } from "./ngram-profile"
+import { getWordRank, BAND_RANK_THRESHOLDS } from "../data/frequency"
 
 interface StrategyWeights {
   perf: number
@@ -58,6 +59,7 @@ export function scoreCandidateWord(
 
   // 1. Performance Value: ability to maintain high speed and precision
   let performanceValue = 0.5
+  const wordRank = getWordRank(clean)
   if (wProfile && wProfile.attempts > 0) {
     const speedRatio = Math.min(1.2, wProfile.recentWpm / Math.max(30, baselineWpm))
     const accScore = Math.pow(wProfile.recentAccuracy / 100, 2)
@@ -65,11 +67,19 @@ export function scoreCandidateWord(
   } else {
     // Unobserved words: favor intrinsically easy words for flow
     performanceValue = Math.max(0.1, 1.0 - effDiff * 0.9)
-    // Short common words feel fast — boost for new-user engagement
-    if (clean.length <= 4) {
+    // Frequency prior — muscle memory only exists for words people actually
+    // type. Tiers stay gentle so scores cluster loosely and sampling keeps
+    // monkeytype-like variety instead of collapsing onto function words.
+    if (wordRank === null) {
+      performanceValue = Math.max(0.05, performanceValue - 0.15)
+    } else if (wordRank <= 50) {
       performanceValue = Math.min(1.0, performanceValue + 0.18)
-    } else if (clean.length <= 5) {
+    } else if (wordRank <= 150) {
+      performanceValue = Math.min(1.0, performanceValue + 0.12)
+    } else if (wordRank <= BAND_RANK_THRESHOLDS.easyMaxRank) {
       performanceValue = Math.min(1.0, performanceValue + 0.08)
+    } else if (wordRank <= 600) {
+      performanceValue = Math.min(1.0, performanceValue + 0.04)
     }
   }
 
@@ -110,7 +120,11 @@ export function scoreCandidateWord(
   // 4. Exploration Value: discovering unobserved or low-confidence words
   let explorationValue = 0.1
   if (!wProfile || wProfile.attempts === 0) {
-    explorationValue = isCalibrating ? 0.15 : 0.85
+    // Exploration budget is reserved for common vocabulary — surfacing
+    // unseen rare words is novelty, not learning.
+    const explorationCeiling = BAND_RANK_THRESHOLDS.mediumMaxRank
+    const withinBudget = wordRank !== null && wordRank <= explorationCeiling
+    explorationValue = isCalibrating ? 0.15 : withinBudget ? 0.85 : 0.3
   } else {
     explorationValue = Math.max(0.05, 1.0 - wProfile.confidence)
   }

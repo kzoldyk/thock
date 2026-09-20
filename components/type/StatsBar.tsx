@@ -26,7 +26,7 @@ export const StatsBar = memo(function StatsBar({ stats, sessionState }: Props) {
 
   const formatTime = (ms: number) => {
     const sec = ms / 1000
-    if (mode === "time") {
+    if (mode === "time" || mode === "code") {
       const timeLeft = Math.max(timeLimit - Math.floor(sec), 0)
       return `${timeLeft}s`
     }

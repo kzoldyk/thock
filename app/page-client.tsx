@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -29,6 +29,9 @@ import { SwitchLab } from "@/components/type/SwitchLab"
 import { MobileTabBar } from "@/components/type/MobileTabBar"
 import { WordsDisplay } from "@/components/type/Words"
 import { ResultCard } from "@/components/type/ResultCard"
+import { LearnProgressBar } from "@/components/type/LearnProgressBar"
+import { HandPlacementGuide } from "@/components/type/HandPlacementGuide"
+import { getLearnProgression, KEYBR_PROGRESSION, type LearnState } from "@/lib/learn-progression"
 import { useTypingSession } from "@/hooks/useTypingSession"
 import { useAppStore } from "@/stores/useAppStore"
 import { audioEngine } from "@/engines/audioEngine"
@@ -581,6 +584,34 @@ export default function Home() {
   const keyboardRef = useRef<KeyboardHandle>(null)
   const mobileInputRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState("Practice")
+  const typingMode = useAppStore((s) => s.typingMode)
+  const setTypingMode = useAppStore((s) => s.setTypingMode)
+
+  const [learnState, setLearnState] = useState<LearnState | null>(null)
+  useEffect(() => {
+    setLearnState(getLearnProgression())
+    const onLearnUpdate = (e: Event) => {
+      const ce = e as CustomEvent<LearnState>
+      if (ce.detail) setLearnState(ce.detail)
+      else setLearnState(getLearnProgression())
+    }
+    window.addEventListener("thock_learn_updated", onLearnUpdate)
+    return () => window.removeEventListener("thock_learn_updated", onLearnUpdate)
+  }, [])
+
+  useEffect(() => {
+    if (typingMode === "learn" && activeTab === "Practice") {
+      setActiveTab("Learn")
+    } else if (typingMode !== "learn" && activeTab === "Learn") {
+      setActiveTab("Practice")
+    }
+  }, [typingMode, activeTab])
+
+  const unlockedLettersSet = useMemo(() => {
+    if (!learnState) return null
+    return new Set(KEYBR_PROGRESSION.slice(0, learnState.unlockedCount) as readonly string[])
+  }, [learnState])
+
   const [windowFocused, setWindowFocused] = useState(true)
   const [visitorCount, setVisitorCount] = useState<number | null>(null)
   const [onlineUsersCount, setOnlineUsersCount] = useState<number | null>(null)
@@ -733,7 +764,6 @@ export default function Home() {
 
   const theme = appThemes.find((t) => t.id === appThemeId) || appThemes[0]
   const fontFamily = useAppStore((s) => s.fontFamily)
-  const typingMode = useAppStore((s) => s.typingMode)
   const fontClass = getFontClass(fontFamily)
 
   useEffect(() => {
@@ -761,7 +791,7 @@ export default function Home() {
     getHistory,
     getKeystrokes,
     getTargetText,
-  } = useTypingSession(keyboardRef, layoutId, !windowFocused || activeTab !== "Practice" || introActive)
+  } = useTypingSession(keyboardRef, layoutId, !windowFocused || (activeTab !== "Practice" && activeTab !== "Learn") || introActive)
 
   const volume = useAppStore((s) => s.volume)
   const reverb = useAppStore((s) => s.reverb)
@@ -972,17 +1002,26 @@ export default function Home() {
 
           {/* Center: Premium Nav Items */}
           <nav className="hidden md:flex items-center p-0.5 bg-black/5 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 backdrop-blur-sm">
-            {["Practice", "Challenges", "Leaderboard", "Statistics"].map((tab) => {
+            {["Practice", "Learn", "Challenges", "Leaderboard", "Statistics"].map((tab) => {
               const isPractice = tab === "Practice"
+              const isLearn = tab === "Learn"
               const isLeaderboard = tab === "Leaderboard"
               const isStatistics = tab === "Statistics"
-              const isEnabled = isPractice || isLeaderboard || isStatistics
+              const isEnabled = isPractice || isLearn || isLeaderboard || isStatistics
               const isActive = activeTab === tab
               return (
                 <button
                   key={tab}
                   disabled={!isEnabled}
-                  onClick={() => isEnabled && setActiveTab(tab)}
+                  onClick={() => {
+                    if (!isEnabled) return
+                    if (tab === "Learn") {
+                      setTypingMode("learn")
+                    } else if (tab === "Practice" && typingMode === "learn") {
+                      setTypingMode("time")
+                    }
+                    setActiveTab(tab)
+                  }}
                   className={cn(
                     "relative px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 flex items-center gap-1.5",
                     !isEnabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
@@ -1100,10 +1139,17 @@ export default function Home() {
 
         {/* Main content grid */}
         <div className={cn("flex-1 flex flex-col justify-between py-1 sm:py-4 relative z-10", showKeyboard && "gap-1.5 xs:gap-2 sm:gap-4")}>
-          {activeTab === "Practice" ? (
+          {(activeTab === "Practice" || activeTab === "Learn") ? (
             <>
-              {/* Quick Mode & Timer Toolbar */}
-              {sessionState !== "finished" && (
+              {/* Learn Progression Bar (Learn mode) */}
+              {activeTab === "Learn" && sessionState !== "finished" && (
+                <div style={revealStyle(1)} className={cn("flex justify-center pt-1 pb-0.5 flow-transition z-20", (flowMode || sessionState === "typing") && "flow-fade-out")}>
+                  <LearnProgressBar onRestartSession={restart} />
+                </div>
+              )}
+
+              {/* Quick Mode & Timer Toolbar (Practice mode) */}
+              {activeTab === "Practice" && sessionState !== "finished" && (
                 <div style={revealStyle(1)} className={cn("flex justify-center pt-1 pb-0.5 flow-transition z-20", (flowMode || sessionState === "typing") && "flow-fade-out")}>
                   <QuickBar />
                 </div>
@@ -1116,10 +1162,10 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Signature spacebar countdown (time mode only).
+              {/* Signature spacebar countdown (time and code modes).
                   Stays visible while typing AND in flow mode — the countdown
                   is essential info; flow only hides decorative chrome. */}
-              {typingMode === "time" && sessionState !== "finished" && !zenMode && (
+              {(typingMode === "time" || typingMode === "code") && sessionState !== "finished" && !zenMode && (
                 <div style={revealStyle(2)} className="flex justify-center pb-1">
                   <TimerBar elapsedMs={stats.elapsedMs} sessionState={sessionState} />
                 </div>
@@ -1191,6 +1237,12 @@ export default function Home() {
                       fontClass={fontClass}
                       onKeyPress={pressVirtualKey}
                       onKeyRelease={releaseVirtualKey}
+                      targetChar={
+                        activeTab === "Learn" || typingMode === "learn"
+                          ? words[currentWordIndex]?.chars[currentCharIndex]?.char || learnState?.targetLetter
+                          : null
+                      }
+                      showFingerGuide={activeTab === "Learn" || typingMode === "learn"}
                     />
                   ) : (
                     <motion.div
@@ -1207,6 +1259,14 @@ export default function Home() {
                         onKeyRelease={releaseVirtualKey}
                       />
                     </motion.div>
+                  )}
+
+                  {/* Keybr Hand Placement Guide (in Learn mode) */}
+                  {activeTab === "Learn" && (
+                    <HandPlacementGuide
+                      targetLetter={learnState?.targetLetter}
+                      currentChar={words[currentWordIndex]?.chars[currentCharIndex]?.char}
+                    />
                   )}
                 </div>
               )}
@@ -1279,7 +1339,7 @@ export default function Home() {
         </div>
 
         {/* Footer hint details */}
-        {activeTab === "Practice" && (
+        {(activeTab === "Practice" || activeTab === "Learn") && (
           <footer style={revealStyle(4)} className={cn(
             "text-center pb-2 sm:pb-4 text-[9px] sm:text-[10px] font-semibold text-[var(--muted)] tracking-wider uppercase select-none relative z-10 opacity-75 flow-transition",
             (flowMode || sessionState === "typing") && "flow-fade-out"
@@ -1315,21 +1375,34 @@ export default function Home() {
       </div>
 
 
-      {/* Floating Delight Banner */}
+      {/* Floating Delight Banner (Top-Right Notification) */}
       <AnimatePresence>
         {delightMessage && (
           <motion.div
-            initial={{ opacity: 0, y: -12, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.95 }}
+            initial={{ opacity: 0, x: 20, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 px-4 py-2 rounded-2xl glass-panel text-xs font-bold text-[var(--accent)] tracking-wide shadow-lg z-30 flex items-center gap-1.5"
+            onClick={() => setDelightMessage(null)}
+            className="fixed top-16 right-4 sm:top-20 sm:right-6 px-3.5 py-2 rounded-2xl glass-panel text-xs font-bold text-[var(--accent)] tracking-wide shadow-xl z-50 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-all border border-[var(--accent)]/20"
             style={{
-              borderColor: "rgba(var(--accent-rgb), 0.15)",
               background: "var(--chrome-surface-strong)"
             }}
+            title="Click to dismiss"
           >
-            <span className="animate-bounce">✨</span> {delightMessage}
+            <span className="animate-bounce">✨</span>
+            <span>{delightMessage}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setDelightMessage(null)
+              }}
+              className="ml-1 text-[var(--muted)] hover:text-[var(--foreground)] text-[11px] leading-none"
+              aria-label="Dismiss notification"
+            >
+              ✕
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1398,7 +1471,14 @@ export default function Home() {
           Leaderboard/Statistics and come back. */}
       <MobileTabBar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          if (tab === "Learn") {
+            setTypingMode("learn")
+          } else if (tab === "Practice" && typingMode === "learn") {
+            setTypingMode("time")
+          }
+          setActiveTab(tab)
+        }}
         hidden={introActive}
       />
 

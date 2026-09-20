@@ -88,6 +88,7 @@ export function saveLocalTestResult(
     timeLimit: data.timeLimit || 30,
     mode: data.mode || "time",
     createdAt: data.createdAt || Date.now(),
+    quality: data.quality,
   }
 
   if (typeof window !== "undefined") {

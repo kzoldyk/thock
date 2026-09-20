@@ -130,6 +130,12 @@ export interface AppTheme {
 
 export type LayoutId = '60' | '75'
 
+export interface TestQualityMetricsRecord {
+  pctTop200: number
+  avgWordLength: number
+  minRepeatDistance: number
+}
+
 export interface TestRecord {
   id: string
   wpm: number
@@ -142,8 +148,9 @@ export interface TestRecord {
   totalTyped: number
   correctChars: number
   timeLimit: number
-  mode: "time" | "words" | "quotes" | "code"
+  mode: "time" | "words" | "quotes" | "code" | "learn"
   createdAt: number
+  quality?: TestQualityMetricsRecord
 }
 
 export interface ModeStatBreakdown {

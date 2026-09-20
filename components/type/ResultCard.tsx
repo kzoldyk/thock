@@ -28,7 +28,9 @@ import { ConfettiBurst } from "@/components/ui/Confetti"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/stores/useAppStore"
 import { saveLocalTestResult, getLocalHistory, saveRecentSessionWords } from "@/lib/user-stats"
+import { computeTestQualityMetrics } from "@/lib/test-quality"
 import { saveLocalLetterGrip } from "@/lib/letter-grip"
+import { evaluateLearnSession, type LearnEvaluationResult } from "@/lib/learn-progression"
 import { recordSessionTelemetry, getLocalAdaptiveProfile, extractWordAttempts } from "@/lib/adaptive"
 import {
   getSecretsProgress,
@@ -147,6 +149,7 @@ export function ResultCard({
   const [masteredCount, setMasteredCount] = useState<number | null>(null)
   const [secrets, setSecrets] = useState<SecretsProgress>(() => getSecretsProgress())
   const [secretHint, setSecretHint] = useState<string | null>(null)
+  const [learnResult, setLearnResult] = useState<LearnEvaluationResult | null>(null)
 
   // Save score locally and submit online
   const deferredTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -171,7 +174,25 @@ export function ResultCard({
       correctChars: stats.correctChars,
       timeLimit: timeLimit || 30,
       mode: typingMode || "time",
+      quality:
+        typingMode === "time" || typingMode === "words"
+          ? computeTestQualityMetrics(targetText || [])
+          : undefined,
     })
+
+    // Evaluate learn mode progression
+    if (typingMode === "learn" && targetText && keystrokes && keystrokes.length > 0) {
+      const res = evaluateLearnSession(stats, targetText, keystrokes)
+      setLearnResult(res)
+      if (res.unlocked && res.newlyUnlockedLetter) {
+        useAppStore.getState().setDelightMessage(`🎉 Letter Unlocked: '${res.newlyUnlockedLetter.toUpperCase()}'!`)
+        setTimeout(() => {
+          if (useAppStore.getState().delightMessage?.startsWith("🎉 Letter Unlocked")) {
+            useAppStore.getState().setDelightMessage(null)
+          }
+        }, 3500)
+      }
+    }
 
     // 2. Track & save granular letter-wise grip and adaptive model telemetry
     if (keystrokes && keystrokes.length > 0) {
@@ -408,10 +429,44 @@ export function ResultCard({
           </div>
 
           <span className="text-[11px] font-mono text-[var(--muted)] px-2 py-0.5 rounded bg-[var(--chrome-surface-soft)] border border-[var(--chrome-border)]">
-            {typingMode === "time" ? `${timeLimit || 30}s` : typingMode}
+            {typingMode === "time" ? `${timeLimit || 30}s` : typingMode === "code" ? `code ${timeLimit || 30}s` : typingMode}
           </span>
         </div>
         </Reveal>
+
+        {learnResult && (
+          <Reveal delay={0.12}>
+            <div
+              className={cn(
+                "mb-4 p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs",
+                learnResult.unlocked
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                  : "bg-[var(--chrome-surface-soft)] border-[var(--chrome-border)] text-[var(--foreground)]"
+              )}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg">{learnResult.unlocked ? "🎉" : "🎯"}</span>
+                <div>
+                  <div className="font-bold text-[13px]">
+                    {learnResult.unlocked
+                      ? `Key Unlocked: '${learnResult.newlyUnlockedLetter?.toUpperCase()}'!`
+                      : `Touch Typing Focus: Key '${learnResult.state.targetLetter.toUpperCase()}'`}
+                  </div>
+                  <div className="text-[11px] text-[var(--muted)] mt-0.5">
+                    {learnResult.unlocked
+                      ? `Stage ${learnResult.state.unlockedCount}/26 complete. Next key to master: '${learnResult.nextTargetLetter?.toUpperCase()}'.`
+                      : learnResult.targetMet
+                      ? `Clean rep recorded! ${learnResult.cleanStreak}/3 reps toward unlocking next letter.`
+                      : `Target: ≥94% accuracy, ≥22 WPM with letter '${learnResult.state.targetLetter.toUpperCase()}'.`}
+                  </div>
+                </div>
+              </div>
+              <div className="shrink-0 font-bold px-2.5 py-1 rounded-lg bg-black/10 dark:bg-white/10 text-[11px] tabular-nums">
+                Stage {learnResult.state.unlockedCount}/26
+              </div>
+            </div>
+          </Reveal>
+        )}
 
         {/* Hero WPM + Compact Stats Section */}
         <Reveal delay={0.22}>

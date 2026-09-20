@@ -3,6 +3,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import type { FontFamily, LayoutId } from "@/types"
+import type { LanguageId } from "@/lib/data/frequency"
 
 interface AppStore {
   layoutId: LayoutId
@@ -29,8 +30,8 @@ interface AppStore {
   setPitch: (v: number) => void
   fontFamily: FontFamily
   setFontFamily: (font: FontFamily) => void
-  typingMode: "time" | "words" | "quotes" | "code"
-  setTypingMode: (mode: "time" | "words" | "quotes" | "code") => void
+  typingMode: "time" | "words" | "quotes" | "code" | "learn"
+  setTypingMode: (mode: "time" | "words" | "quotes" | "code" | "learn") => void
   paragraphMode: boolean
   setParagraphMode: (v: boolean) => void
   zenMode: boolean
@@ -41,6 +42,10 @@ interface AppStore {
   setTimeLimit: (t: number) => void
   complexWords: boolean
   setComplexWords: (v: boolean) => void
+  language: LanguageId
+  setLanguage: (id: LanguageId) => void
+  adaptiveEngine: boolean
+  setAdaptiveEngine: (v: boolean) => void
   showKeyboard: boolean
   setShowKeyboard: (v: boolean) => void
   soundEnabled: boolean
@@ -94,6 +99,10 @@ export const useAppStore = create<AppStore>()(
       setTimeLimit: (t) => set({ timeLimit: t }),
       complexWords: false,
       setComplexWords: (v) => set({ complexWords: v }),
+      language: "en",
+      setLanguage: (id) => set({ language: id }),
+      adaptiveEngine: true,
+      setAdaptiveEngine: (v) => set({ adaptiveEngine: v }),
       showKeyboard: true,
       setShowKeyboard: (v) => set({ showKeyboard: v }),
       soundEnabled: true,
@@ -145,6 +154,8 @@ export const useAppStore = create<AppStore>()(
         typingMode: state.typingMode,
         timeLimit: state.timeLimit,
         complexWords: state.complexWords,
+        language: state.language,
+        adaptiveEngine: state.adaptiveEngine,
         showKeyboard: state.showKeyboard,
         soundEnabled: state.soundEnabled,
         keyboardType: state.keyboardType,

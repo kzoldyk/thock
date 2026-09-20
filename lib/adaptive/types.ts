@@ -1,4 +1,5 @@
 import type { LetterStat, UserGripProfile } from "../letter-grip"
+import type { LanguageId } from "../data/frequency"
 
 export type AdaptiveStrategy = "balanced" | "performance" | "training" | "challenge"
 
@@ -123,4 +124,6 @@ export interface GenerationContext {
   complex?: boolean
   /** Curated practice vocabulary drawn at a high rate during generation */
   practiceSet?: string[]
+  /** Frequency-ranked vocabulary pool selection */
+  language?: LanguageId
 }

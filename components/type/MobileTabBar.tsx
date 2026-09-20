@@ -1,7 +1,7 @@
 "use client"
 
 import { memo } from "react"
-import { Keyboard, Trophy, BarChart3 } from "lucide-react"
+import { Keyboard, GraduationCap, Trophy, BarChart3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface MobileTabBarProps {
@@ -11,7 +11,7 @@ interface MobileTabBarProps {
 }
 
 /**
- * F6 — Mobile bottom tab bar. Practice / Leaderboard / Statistics are
+ * F6 — Mobile bottom tab bar. Practice / Learn / Leaderboard / Statistics are
  * reachable on phones (desktop keeps the pill nav).
  */
 export const MobileTabBar = memo(function MobileTabBar({ activeTab, onTabChange, hidden }: MobileTabBarProps) {
@@ -19,6 +19,7 @@ export const MobileTabBar = memo(function MobileTabBar({ activeTab, onTabChange,
 
   const tabs = [
     { id: "Practice", label: "Practice", icon: Keyboard },
+    { id: "Learn", label: "Learn", icon: GraduationCap },
     { id: "Leaderboard", label: "Board", icon: Trophy },
     { id: "Statistics", label: "Stats", icon: BarChart3 },
   ]

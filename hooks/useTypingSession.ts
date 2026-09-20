@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import type { TypingStats, WordData, SessionState, Keystroke, LayoutId } from "@/types"
 import { generateAdaptiveWords } from "@/lib/words"
+import { generateLearnWords } from "@/lib/learn-progression"
 import { getLocalAdaptiveProfile } from "@/lib/adaptive"
 import { getLocalHistory, getRecentSessionWords } from "@/lib/user-stats"
 import {
@@ -88,35 +89,47 @@ export const CODE_SNIPPETS = [
   "SELECT users.id, posts.title FROM users JOIN posts ON users.id = posts.user_id;"
 ]
 
-function getCodeSnippetForSeed(seed: number): string[] {
-  const idx = Math.floor(Math.abs(Math.sin(seed)) * CODE_SNIPPETS.length)
-  const snippet = CODE_SNIPPETS[idx] || CODE_SNIPPETS[0]
-  return snippet.split(" ")
+function getCodeSnippetsSequence(seed: number, count: number = 30): string[] {
+  const words: string[] = []
+  let s = Math.abs(seed)
+  for (let i = 0; i < count; i++) {
+    s = (s * 9301 + 49297) % 233280
+    const idx = Math.floor((s / 233280) * CODE_SNIPPETS.length)
+    const snippet = CODE_SNIPPETS[idx] || CODE_SNIPPETS[0]
+    words.push(...snippet.split(" "))
+    if (words.length >= 100) break
+  }
+  return words
 }
 
 function getTargetTextForMode(
-  mode: "time" | "words" | "quotes" | "code",
+  mode: "time" | "words" | "quotes" | "code" | "learn",
   seed: number,
   complexWords?: boolean,
 ): string[] {
+  if (mode === "learn") {
+    return generateLearnWords(25)
+  }
+
   const profile = getLocalAdaptiveProfile()
   const history = getLocalHistory()
   const testCount = history.length
   const recentWords = getRecentSessionWords()
+  const { language, adaptiveEngine } = useAppStore.getState()
 
   if (mode === "time") {
-    return generateAdaptiveWords(150, { profile, testCount, seed, complex: complexWords, recentWords })
+    return generateAdaptiveWords(150, { profile, testCount, seed, complex: complexWords, recentWords, language, adaptive: adaptiveEngine })
   } else if (mode === "words") {
-    return generateAdaptiveWords(25, { profile, testCount, seed, complex: complexWords, recentWords })
+    return generateAdaptiveWords(25, { profile, testCount, seed, complex: complexWords, recentWords, language, adaptive: adaptiveEngine })
   } else if (mode === "code") {
-    return getCodeSnippetForSeed(seed)
+    return getCodeSnippetsSequence(seed)
   } else {
     return getQuoteForSeed(seed)
   }
 }
 
 function freshSession(
-  mode: "time" | "words" | "quotes" | "code",
+  mode: "time" | "words" | "quotes" | "code" | "learn",
   seed?: number,
   complexWords?: boolean,
 ): TypingSessionState {
@@ -223,6 +236,8 @@ export function useTypingSession(
   const typingMode = useAppStore((s) => s.typingMode)
   const complexWords = useAppStore((s) => s.complexWords)
   const timeLimit = useAppStore((s) => s.timeLimit)
+  const language = useAppStore((s) => s.language)
+  const adaptiveEngine = useAppStore((s) => s.adaptiveEngine)
 
   const rerender = useCallback(() => {
     setViewState({ ...sessionRef.current })
@@ -254,7 +269,7 @@ export function useTypingSession(
     activeKeysRef.current.clear()
     resetStatsBuffers()
     rerender()
-  }, [typingMode, complexWords, timeLimit, rerender, resetStatsBuffers])
+  }, [typingMode, complexWords, timeLimit, language, adaptiveEngine, rerender, resetStatsBuffers])
 
   const getPanValue = useCallback(
     (code: string): number => {
@@ -266,21 +281,21 @@ export function useTypingSession(
     [layout],
   )
 
-  const computeLatestStats = useCallback(() => {
+  const computeLatestStats = useCallback((allowFinished = false) => {
     const s = sessionRef.current
     if (!s.startTime) return
     // A leaked/stale interval must be a complete no-op once the session
-    // stopped typing — otherwise finished sessions keep sampling + rerendering.
-    if (s.state !== "typing") return
+    // stopped typing — unless this is the explicit final transition to 'finished'.
+    if (s.state !== "typing" && !(allowFinished && s.state === "finished")) return
     const now = performance.now()
     let elapsed = s.endTime ? s.endTime - s.startTime : now - s.startTime
 
     const currentMode = useAppStore.getState().typingMode
     const currentTimeLimit = useAppStore.getState().timeLimit
 
-    // dynamic seconds deadline threshold check (only in time mode)
+    // dynamic seconds deadline threshold check (time and code modes)
     const thresholdMs = currentTimeLimit * 1000
-    if (currentMode === "time" && s.state === "typing" && elapsed >= thresholdMs) {
+    if ((currentMode === "time" || currentMode === "code") && s.state === "typing" && elapsed >= thresholdMs) {
       s.state = "finished"
       s.endTime = s.startTime + thresholdMs
       elapsed = thresholdMs
@@ -388,12 +403,16 @@ export function useTypingSession(
           if (timerRef.current) {
             clearInterval(timerRef.current)
           }
+          if (useAppStore.getState().delightMessage) {
+            useAppStore.getState().setDelightMessage(null)
+          }
           s.startTime = performance.now()
           timerRef.current = setInterval(computeLatestStats, 100)
           // Guaranteed finish: a one-shot timeout armed for the exact
           // remaining time, so the result fires even if the sampling
           // interval is throttled (background tab) or dies.
-          if (useAppStore.getState().typingMode === "time") {
+          const mode = useAppStore.getState().typingMode
+          if (mode === "time" || mode === "code") {
             clearFinishTimer()
             const remainingMs = useAppStore.getState().timeLimit * 1000 - (performance.now() - s.startTime)
             finishTimerRef.current = setTimeout(() => {
@@ -547,7 +566,7 @@ export function useTypingSession(
           s.charIndex = result.newCharIndex
           s.state = result.newState
 
-          computeLatestStats()
+          computeLatestStats(result.newState === "finished")
         }
       }
     },

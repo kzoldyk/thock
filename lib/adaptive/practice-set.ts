@@ -1,5 +1,5 @@
 import type { UserTypingProfile, WordAttempt, WordProfile } from "./types"
-import { commonWords } from "../words"
+import { FREQUENCY_WORDS, getWordRank } from "../data/frequency"
 import { effectiveDifficulty, classifyDifficultyBand } from "./difficulty"
 
 /**
@@ -21,6 +21,14 @@ const FAST_SHARE = 0.6
 const REHAB_SHARE = 0.25
 export const MASTER_CLEAN_STREAK = 3
 export const REHAB_MAX_ATTEMPTS = 8
+
+/**
+ * Rehab vocabulary is drawn from common words only — drilling a weakness
+ * inside "grizzly" builds muscle memory for a word nobody types.
+ */
+const REHAB_MAX_RANK = 1000
+/** Fresh exploration filler comes from the comfortably-frequent zone. */
+const FRESH_POOL_SIZE = 600
 
 interface PracticeWordMeta {
   word: string
@@ -70,6 +78,21 @@ export function buildPracticeSet(
     }
   }
 
+  // 2. Rehab candidates: weak words directly, then words containing weak patterns.
+  // Common words get priority; rare observed words are a last resort.
+  const rankOf = (word: string): number => getWordRank(word) ?? Number.MAX_SAFE_INTEGER
+  const byFrequency = (a: string, b: string) => rankOf(a) - rankOf(b)
+  const weakDirectAll = [...weakDirect]
+  const patternMatchesAll = [...patternMatches]
+  weakDirectAll.sort(byFrequency)
+  patternMatchesAll.sort(byFrequency)
+  const rehabPool = [
+    ...weakDirectAll.filter((w) => rankOf(w) <= REHAB_MAX_RANK),
+    ...patternMatchesAll.filter((w) => rankOf(w) <= REHAB_MAX_RANK),
+    ...weakDirectAll,
+    ...patternMatchesAll,
+  ]
+
   const fastQuota = Math.round(PRACTICE_SET_TARGET * FAST_SHARE)
   const rehabQuota = Math.round(PRACTICE_SET_TARGET * REHAB_SHARE)
 
@@ -82,7 +105,6 @@ export function buildPracticeSet(
       meta.push({ word: w, kind: "fast", cleanStreak: 0, rehabAttempts: 0 })
     }
   }
-  const rehabPool = [...weakDirect, ...patternMatches]
   for (const w of rehabPool.slice(0, rehabQuota)) {
     if (!picked.has(w)) {
       picked.add(w)
@@ -90,8 +112,11 @@ export function buildPracticeSet(
     }
   }
   if (picked.size < PRACTICE_SET_TARGET) {
-    const freshEasy = commonWords
-      .filter((w) => !picked.has(w) && classifyDifficultyBand(effectiveDifficulty(w, profile)) === "easy")
+    const freshEasy = FREQUENCY_WORDS.slice(0, FRESH_POOL_SIZE).filter(
+      (w) =>
+        !picked.has(w) &&
+        classifyDifficultyBand(effectiveDifficulty(w, profile)) === "easy"
+    )
     // Deterministic-ish shuffle via rng
     for (let i = freshEasy.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1))
@@ -211,8 +236,11 @@ function buildPartialRefill(
 
   // Fresh easy filler
   if (out.length < PRACTICE_SET_TARGET) {
-    const fresh = commonWords
-      .filter((w) => !members.has(w) && classifyDifficultyBand(effectiveDifficulty(w, profile)) === "easy")
+    const fresh = FREQUENCY_WORDS.slice(0, FRESH_POOL_SIZE).filter(
+      (w) =>
+        !members.has(w) &&
+        classifyDifficultyBand(effectiveDifficulty(w, profile)) === "easy"
+    )
     for (let i = fresh.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1))
       ;[fresh[i], fresh[j]] = [fresh[j], fresh[i]]
